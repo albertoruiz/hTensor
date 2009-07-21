@@ -1,0 +1,50 @@
+Name:               hTensor
+Version:            0.1
+License:            GPL
+License-file:       LICENSE
+Author:             Alberto Ruiz
+Maintainer:         Alberto Ruiz <aruiz@um.es>
+Stability:          experimental
+Homepage:           http://perception.inf.um.es/tensor
+Synopsis:           Multidimensional arrays, multilinear algebra.
+Description:        A library for numeric tensor computations,
+                    exterior algebra, and geometric algebra.
+Category:           Math
+tested-with:        GHC ==6.10.3
+
+cabal-version:      >=1.2
+build-type:         Simple
+
+extra-source-files: README INSTALL
+
+extra-source-files: examples/array.hs
+                    examples/exterior.hs
+                    examples/geom.hs
+
+flag splitBase
+    description:    Choose the new smaller, split-up base package.
+
+library
+    if flag(splitBase)
+      build-depends:    base >= 3 && < 5
+    else
+      build-depends:    base < 3
+
+    Build-Depends:      haskell98, hmatrix >= 0.5, containers
+
+    hs-source-dirs:     lib
+    Exposed-modules:    Numeric.LinearAlgebra.Array.Simple
+                        Numeric.LinearAlgebra.Array.Util
+                        Numeric.LinearAlgebra.Array
+                        Numeric.LinearAlgebra.Tensor
+                        Numeric.LinearAlgebra.Exterior
+                        Numeric.LinearAlgebra.Multivector
+
+    other-modules:      Numeric.LinearAlgebra.Array.Internal
+
+    ghc-prof-options:   -auto-all
+
+    ghc-options:        -Wall
+                        -fno-warn-missing-signatures
+                        -fno-warn-orphans
+                        -fno-warn-unused-binds

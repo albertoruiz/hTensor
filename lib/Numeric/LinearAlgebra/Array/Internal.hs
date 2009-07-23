@@ -45,10 +45,10 @@ module Numeric.LinearAlgebra.Array.Internal (
     makeConformant,
     mapTypes,
     renameRaw,
-    formatA, formatS, printA, printS,
+    formatArray, formatFixed, formatScaled, printA,
     showBases,
     newIndex,
-    dummyAt,
+    dummyAt, noIdx,
     basisOf,
     common,
     Coord,
@@ -351,7 +351,7 @@ pad nr nc (Rect r c ss) = Rect (r+r') (c+c') ss'' where
     c' = max 0 (nc-c)
     ss' = map (padH nc) ss
     ss'' = replicate r' (replicate nc '-') ++ ss'
-    padH l s = replicate (l-length s) '|' ++ s
+    padH l s = take (l-length s) (" | "++repeat ' ') ++ s
 
 dispH :: Int -> [Rect] -> Rect
 dispH k rs = Rect nr nc nss where
@@ -373,37 +373,39 @@ mapTail _ x     = x
 
 
 
-formatAux f x = unlines . (ds:) . els . fmt ms $ x where
+formatAux f x = unlines . addds . els . fmt ms $ x where
     fmt [] _ = undefined -- cannot happen
     fmt (g:gs) t
         | rank t == 0 = rect (f (coords t @> 0))
         | rank t == 1 =  rect $ unwords $ map f (toList $ coords t)
-        | rank t == 2 =  decor t $ rect $ format " " f (reshape (iDim $ last $ dims t) (coords t))
+        | rank t == 2 =  decor t $ rect $ w1 $ format " " f (reshape (iDim $ last $ dims t) (coords t))
         | otherwise    = decor t (g ps)
       where ps = map (fmt gs ) (partsRaw t (head (names t)))
-    ds = showNice (filter ((/="*").iName) $ dims x)
-    ms = cycle [dispV 1, dispH 1]
+    ds = showNice (filter ((/='*').head.iName) $ dims x)
+    addds = if null ds then (showRawDims (dims x) :) else (ds:)
+    w1 = unlines . map (' ':) . lines
+    ms = cycle [dispV 1, dispH 2]
     decor t | odd (rank t) = id
             | otherwise = decorLeft  (names t!!0) . decorUp (names t!!1)
 
 
 showNice x = unwords . intersperse "x" . map show $ x
+showRawDims = showNice . map iDim . filter ((/="*").iName)
 
 ------------------------------------------------------
 
-
 -- | Show a multidimensional array as a nested 2D table.
-formatA :: (Coord t, Compat i)
+formatArray :: (Coord t, Compat i)
       => (t -> String) -- ^ format function (eg. printf \"5.2f\")
       -> NArray i t
       -> String
-formatA f t | odd (rank t) = formatAux f (dummyAt 0 t)
+formatArray f t | odd (rank t) = formatAux f (dummyAt 0 t)
             | otherwise    = formatAux f t
 
 
 decorUp s rec
-    | s == "*"  = rec
-    | otherwise = dispV 0 [rs,rec]
+    | head s == '*' = rec
+    | otherwise     = dispV 0 [rs,rec]
   where
     c = co rec
     c1 = (c - length s) `div` 2
@@ -411,8 +413,8 @@ decorUp s rec
     rs = rect $ replicate c1 ' ' ++ s ++ replicate c2 ' '
 
 decorLeft s rec
-    | s == "*"  = rec
-    | otherwise = dispH 0 [rs,rec]
+    | head s == '*' = rec
+    | otherwise     = dispH 0 [rs,rec]
   where
     c = li rec
     r1 = (c - length s+1) `div` 2
@@ -422,44 +424,48 @@ decorLeft s rec
 
 ------------------------------------------------------
 
--- | Print the array as a nested table with the desired format (e.g. %7.2f) (see also 'formatA', 'formatS', and 'formatN').
+-- | Print the array as a nested table with the desired format (e.g. %7.2f) (see also 'formatArray', and 'formatScaled').
 printA :: (Coord t, Compat i, PrintfArg t) => String -> NArray i t -> IO ()
-printA f t = putStrLn (formatA (printf f) t)
+printA f t = putStrLn (formatArray (printf f) t)
 
 
--- | Show the array as a nested table with scaled entries.
-formatS :: (Coord t, Compat i, RealFrac t, PrintfArg t)
-      => Int -- ^ number of decimal places
-      -> NArray i t
+-- | Show the array as a nested table with autoscaled entries.
+formatScaled :: (Compat i)
+      => Int -- ^ number of of decimal places
+      -> NArray i Double
       -> String
-formatS dec t = unlines (('(':d++")  E"++show o) : m)
-    where ss = formatA (printf fmt. g) t
+formatScaled dec t = unlines (('(':d++")  E"++show o) : m)
+    where ss = formatArray (printf fmt. g) t
           d:m = lines ss
           g x = x/10^(o::Int)
           o = floor $ maximum $ map (logBase 10 . abs) $ toList $ coords t
           fmt = '%':show (dec+3) ++ '.':show dec ++"f"
 
--- | Print the array as a nested table with scaled entries. If all entries
--- are integer the array is shown without decimal points.
-printS :: (Compat i)
-      => Int -- ^ number of digits
+-- | Show the array as a nested table with a \"\%.nf\" format. If all entries
+-- are approximate integers the array is shown without the .00.. digits.
+formatFixed :: (Compat i)
+      => Int -- ^ number of of decimal places
       -> NArray i Double
-      -> IO ()
-printS dec t | isInt t   = printA ('%': show (width t) ++".0f") t
-             | otherwise = putStrLn $ formatS dec t
+      -> String
+formatFixed dec t
+    | isInt t   = formatArray (printf ('%': show (width t) ++".0f")) t
+    | otherwise = formatArray (printf ('%': show (width t+dec+1) ++"."++show dec ++"f")) t
 
 isInt = all lookslikeInt . toList . coords
-lookslikeInt x = show (round x :: Int) ++".0" == show x
---needsSign t = vectorMin (coords t) < 0
-width t = 2 + floor (logBase 10 (max 1 $ vectorMax (abs $ coords t))) :: Int
---     where k | needsSign t = 2
---             | otherwise = 1
+lookslikeInt x = show (round x :: Int) ++".0" == shx || "-0.0" == shx
+    where shx = show x
+needsSign t = vectorMin (coords t) < 0
+--width :: Compat i => NArray i Double -> Int
+width = maximum . map (length . (printf "%.0f"::Double->String)) . toList . coords
+-- width t = k + floor (logBase 10 (max 1 $ vectorMax (abs $ coords t))) :: Int
+--      where k | needsSign t = 2
+--              | otherwise = 1
 
 ------------------------------------------------------
 
 -- | Create an array from a list of subarrays. (The inverse of 'parts'.)
 newIndex:: (Coord t, Compat i) =>
-     i  -- ^ index type 
+     i  -- ^ index type
      -> Name
      -> [NArray i t]
      -> NArray i t
@@ -468,20 +474,6 @@ newIndex i name ts = r where
     cts = makeConformant ts
     r = mkNArray ds (join $ map coords cts)
 
-newIndex'' i name ts = r where
-    ds = case common dims ts of
-            Nothing -> error $ "newIndex requires a list of arrays with common structure"
-            Just x -> x
-    ds' = Idx (length ts) name i : ds
-    r = mkNArray ds' (join $ map coords ts)
-
-newIndex' i name ts = sumT $ zipWith f (base i n) ts where
-    f b t = rename b [name] |*| t
-    sumT = foldl1' (zipArray (+))
-    n = length ts
-
-base i n = [mkNArray [d] (fromList (replicate (k-1) 0 ++ 1:replicate (n-k) 0))| k <-[1..n]]
-        where d = Idx n "*" i
 
 -- | Insert a dummy index of dimension 1 at a given level (for formatting purposes).
 dummyAt :: Int -> NArray i t -> NArray i t
@@ -490,13 +482,13 @@ dummyAt k t = mkNArray d' (coords t) where
     d' = d1 ++ d : d2
     d = Idx 1 "*" undefined
 
+-- | Rename indices so that they are not shown in formatted output.
+noIdx :: Compat i => NArray i t -> NArray i t
+noIdx t = renameRaw t (map ('*':) (names t))
 
 -- | Obtain a canonical base for the array.
 basisOf :: Coord t => NArray i t -> [NArray i t]
 basisOf t = map (dims t `mkNArray`) $ toRows (ident . dim . coords $ t)
-
--- baseOf :: Element t => [Idx i] -> [NArray i t]
--- baseOf ds = map (ds `mkNArray`) $ toRows (ident . product . map iDim $ ds)
 
 -------------------------------------------------------------
 

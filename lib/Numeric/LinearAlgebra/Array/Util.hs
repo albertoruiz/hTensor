@@ -29,8 +29,8 @@ module Numeric.LinearAlgebra.Array.Util (
     extract, onIndex,
 
     reorder, (~>),
-    formatA, formatS, printA, printS,
-    dummyAt,
+    formatArray, formatFixed, formatScaled,
+    dummyAt, noIdx,
     conformable,
     sameStructure,
     makeConformant,

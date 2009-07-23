@@ -1,11 +1,10 @@
 import Numeric.LinearAlgebra.Exterior
-import Data.Packed.Array.Util(printS,asMatrix)
+import Numeric.LinearAlgebra.Array.Util(formatFixed,asMatrix)
 import Numeric.LinearAlgebra (det,(><))
 
 printAS = print . asMultivector
 
---printF t = printA "%3.0f" $ t
-sh x = printS 2 x
+sh = putStrLn . formatFixed 2
 
 -- 'listTensor' specialized for Tensor Double
 infixl 9 #

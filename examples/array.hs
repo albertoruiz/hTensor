@@ -1,9 +1,9 @@
 import Numeric.LinearAlgebra.Array
-import Data.Packed.Array.Util
+import Numeric.LinearAlgebra.Array.Util
 import Control.Applicative
-import Data.List
-import Text.Printf
-import Data.Packed
+--import Data.List
+--import Text.Printf
+--import Data.Packed
 
 -- 'listArray' specialized for Array Double
 infixl 9 #
@@ -18,7 +18,7 @@ i = ("i" <|)
 j = ("j" <|)
 k = ("k" <|)
 
-sh x = printS 2 x
+sh x = putStrLn . formatFixed 2 $ x
 
 a = [3,4,2] # [1..]
 b = [2,3] # [5,6]
@@ -40,7 +40,8 @@ main = do
     putStrLn "different display formats"
     sh $ a!"ijk"
     printA "%7.3f" a
-    putStrLn . formatS 2 $ a!"ijk"
+    putStrLn . formatScaled 2 $ a!"ijk"
+    sh . noIdx $ a
     ------------------------
     putStrLn "array defined using a function"
     sh q

@@ -49,7 +49,7 @@ gsym f t = mkNArray (dims t) (coords $ sum ts) where
     per = permutations ns
     ts  = map (flip renameRaw ns . f . flip reorder t') per
 
-symmetrize t = gsym id t
+-- symmetrize t = gsym id t
 
 antisymmetrize t = gsym scsig t
     where scsig x = scalar (signature (names x)) * x

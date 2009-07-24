@@ -1,14 +1,30 @@
 Name:               hTensor
-Version:            0.1
+Version:            0.1.0
 License:            GPL
 License-file:       LICENSE
 Author:             Alberto Ruiz
 Maintainer:         Alberto Ruiz <aruiz@um.es>
 Stability:          experimental
 Homepage:           http://perception.inf.um.es/tensor
-Synopsis:           Multidimensional arrays, multilinear algebra.
-Description:        A library for numeric tensor computations,
-                    exterior algebra, and geometric algebra.
+Synopsis:           Multidimensional arrays and simple tensor computations.
+Description:
+ This is an experimental library for multidimensional arrays,
+ oriented to support simple tensor computations and multilinear
+ algebra.
+ .
+ Array dimensions have an \"identity\" which is preserved
+ in data manipulation. Indices are explicitly selected by name in
+ expressions, and Einstein's summation convention for repeated indices
+ is automatically applied.
+ .
+ The library has a purely functional interface: arrays are immutable,
+ and operations typically work on whole structures which can be assembled
+ and decomposed using simple primitives. Arguments are automatically made conformant
+ by replicating them along extra dimensions appearing in an operation.
+ There is preliminary support for Geometric Algebra.
+ .
+ A tutorial can be found in the website of the project.
+
 Category:           Math
 tested-with:        GHC ==6.10.3
 
@@ -47,4 +63,3 @@ library
     ghc-options:        -Wall
                         -fno-warn-missing-signatures
                         -fno-warn-orphans
-                        -fno-warn-unused-binds

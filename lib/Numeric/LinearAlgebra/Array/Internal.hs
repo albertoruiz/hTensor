@@ -176,8 +176,7 @@ parts a name | name `elem` (names a) = map (reorder orig) (partsRaw a name)
     where orig = names a \\ [name]
 
 partsRaw a name = map f (toRows m)
-    where (d:ds,m) = firstIdx name a
-          l = iDim d
+    where (_:ds,m) = firstIdx name a
           f t = A {dims=ds, coords=t}
 
 tridx [] t = t
@@ -282,26 +281,6 @@ sameStructure a b = sortBy (compare `on` iName) (dims a) == sortBy (compare `on`
 
 -------------------------------------------------------------
 
--- | Check if the dimensional structure of one array is contained in the other one.
-conformant :: (Eq i) => NArray i t1 -> NArray i t2 -> Bool
-conformant a b = conform' a b || conform' b a
-
-conform' b s = all (`elem` dims b) (dims s)
-
-adapt' b s = if conform' b s
-                then Just (b, reorder (names b) s')
-                else Nothing
-    where pref = dims b \\ dims s
-          n = product (map iDim pref)
-          A d v = s
-          s' = A (pref++d) (join (replicate n v))
-
-adapt a b = if rank a >= rank b
-                then adapt' a b
-                else flipT `fmap` adapt' b a
-
-flipT (a,b) = (b,a)
-
 -- | Apply a function on vectors to conformant arrays. Two arrays are 'conformant' if
 -- the dimensional structure of one of them is contained in the other one. The smaller
 -- structure is replicated along the extra dimensions. The result has the same index
@@ -313,14 +292,6 @@ zipArray :: (Coord a, Coord b, Compat i)
    -> NArray i c
 zipArray o a b = liftNA2 o a' b' where
     (a',b') = makeConformantT (a,b)
-
-
-
-zipArray' o a b = liftNA2 o a' b' where
-    (a',b') = case adapt a b of
-                Just (x,y) -> (x, reorder (names x) y)
-                Nothing -> error $ "nonconformant structures "
-                                 ++show (dims a) ++ " " ++ show (dims b)
 
 -------------------------------------------------------
 
@@ -454,8 +425,8 @@ formatFixed dec t
 isInt = all lookslikeInt . toList . coords
 lookslikeInt x = show (round x :: Int) ++".0" == shx || "-0.0" == shx
     where shx = show x
-needsSign t = vectorMin (coords t) < 0
---width :: Compat i => NArray i Double -> Int
+-- needsSign t = vectorMin (coords t) < 0
+-- width :: Compat i => NArray i Double -> Int
 width = maximum . map (length . (printf "%.0f"::Double->String)) . toList . coords
 -- width t = k + floor (logBase 10 (max 1 $ vectorMax (abs $ coords t))) :: Int
 --      where k | needsSign t = 2

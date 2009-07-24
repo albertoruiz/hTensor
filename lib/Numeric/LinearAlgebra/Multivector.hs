@@ -186,13 +186,6 @@ rotor k phi axis = scalar (cos (phi/2)) - scalar (sin (phi/2)) * (unitary axis*f
 
 
 -- memoization of the rules
-table k = [[ (r2.r1) (x++y) | y<-b] | x<-b]
-    where b = base k
-
-tableInner k = [[ x -| y | y<-b] | x<-b]
-    where b = base' k
-
--- the same with maps
 gprules k = Map.fromList [(x, Map.fromList [(y,(r2.r1)(x++y)) | y<-base k] )| x<-base k]
 
 eprules k = Map.fromList [(x, Map.fromList [(y,(r3.r1)(x++y)) | y<-base k] )| x<-base k]
@@ -226,12 +219,12 @@ gatensor k = listTensor [-pk,-pk,pk] (concat . concat $ gacoords)
 tmv k x = listTensor [2^k] (expand k x)
 
 
-tp a b = comp (g!"ijk" * ta!"i" * tb!"j")
-    where k = max (maxDim a) (maxDim b)
-          g = gatensor k
-          ta = tmv k a
-          tb = tmv k b
-          comp = compact k
+-- tp a b = comp (g!"ijk" * ta!"i" * tb!"j")
+--     where k = max (maxDim a) (maxDim b)
+--           g = gatensor k
+--           ta = tmv k a
+--           tb = tmv k b
+--           comp = compact k
 
 mat rowidx t = reshape c $ Array.coords t'
     where c = iDim $ last (dims t')

@@ -27,7 +27,6 @@ import Numeric.LinearAlgebra.Tensor
 import Numeric.LinearAlgebra.Array.Internal
 import Numeric.LinearAlgebra.Multivector(Multivector,fromTensor,maxDim,grade)
 import qualified Numeric.LinearAlgebra.Multivector as MV
-import Numeric.LinearAlgebra hiding (rank,i)
 import Data.List
 
 -- import Debug.Trace
@@ -70,13 +69,11 @@ a /\ b = renseq (wedge a' b')
     where a' = renseq  a
           b' = renseq' b
 
--- -- | Shows the nonzero coordinates of an antisymmetric tensor. See also 'asMultivector'.
--- showAS :: Tensor Double -> String
--- showAS = showBases . GA.coords . GA.asMultivector
+-- levi n = antisymmetrize $ product $ zipWith renameRaw ts is
+--     where is = map (return.show) [1 .. n]
+--           ts = map (listTensor [n]) (toLists $ ident n)
 
-levi n = antisymmetrize $ product $ zipWith renameRaw ts is
-    where is = map (return.show) [1 .. n]
-          ts = map (listTensor [n]) (toLists $ ident n)
+levi n = listTensor (replicate n n) $ map signature $ sequence (replicate n [1..n])
 
 -- | The full antisymmetric tensor of rank n (contravariant version).
 leviCivita :: Int -> Tensor Double

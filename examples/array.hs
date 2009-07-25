@@ -1,9 +1,6 @@
 import Numeric.LinearAlgebra.Array
 import Numeric.LinearAlgebra.Array.Util
 import Control.Applicative
---import Data.List
---import Text.Printf
---import Data.Packed
 
 -- 'listArray' specialized for Array Double
 infixl 9 #
@@ -31,6 +28,8 @@ q = [2,4,3] # (fun <$> r 2 <*> r 4 <*> r 3) !"ijk"
     where r k = [1..k]
           fun = \i j k -> i*2*j-k
 
+mk ds f = ds # map f (sequence $ map (enumFromTo 1 . fromIntegral) $ ds)
+
 m = j [i[2,0,0], i[1,0,1], i[0,3,0]] ~> "ij"
 
 main = do
@@ -45,6 +44,7 @@ main = do
     ------------------------
     putStrLn "array defined using a function"
     sh q
+    sh $ mk [2,4,3] (\[i,j,k] -> i*2*j-k) !"ijk"
     ------------------------
     putStrLn "contraction"
     sh t

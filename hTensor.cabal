@@ -1,5 +1,5 @@
 Name:               hTensor
-Version:            0.1.0
+Version:            0.1.1
 License:            GPL
 License-file:       LICENSE
 Author:             Alberto Ruiz
@@ -31,8 +31,6 @@ tested-with:        GHC ==6.10.3
 cabal-version:      >=1.2
 build-type:         Simple
 
-extra-source-files: README INSTALL
-
 extra-source-files: examples/array.hs
                     examples/exterior.hs
                     examples/geom.hs
@@ -49,14 +47,14 @@ library
     Build-Depends:      haskell98, hmatrix >= 0.5, containers
 
     hs-source-dirs:     lib
-    Exposed-modules:    Numeric.LinearAlgebra.Array.Simple
-                        Numeric.LinearAlgebra.Array.Util
+    Exposed-modules:    Numeric.LinearAlgebra.Array.Util
                         Numeric.LinearAlgebra.Array
                         Numeric.LinearAlgebra.Tensor
                         Numeric.LinearAlgebra.Exterior
                         Numeric.LinearAlgebra.Multivector
 
     other-modules:      Numeric.LinearAlgebra.Array.Internal
+                        Numeric.LinearAlgebra.Array.Simple
 
     ghc-prof-options:   -auto-all
 

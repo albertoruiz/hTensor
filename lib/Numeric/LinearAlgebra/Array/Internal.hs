@@ -281,10 +281,7 @@ sameStructure a b = sortBy (compare `on` iName) (dims a) == sortBy (compare `on`
 
 -------------------------------------------------------------
 
--- | Apply a function on vectors to conformant arrays. Two arrays are 'conformant' if
--- the dimensional structure of one of them is contained in the other one. The smaller
--- structure is replicated along the extra dimensions. The result has the same index
--- order as the largest structure (or as the first argument, if they are equal).
+-- | Apply an element-by-element binary function to the coordinates of two arrays. The arguments are automatically made conformant.
 zipArray :: (Coord a, Coord b, Compat i)
    => (Vector a -> Vector b -> Vector c) -- ^ transformation
    -> NArray i a
@@ -514,7 +511,7 @@ fromMatrix ir ic m = mkNArray [Idx (rows m) "1" ir,
 
 ------------------------------------------------------------------------
 
--- | Select some parts of a tensor, taking into account position and value.
+-- | Select some parts of an array, taking into account position and value.
 extract :: (Compat i, Coord t)
         => (Int -> NArray i t -> Bool)
         -> Name

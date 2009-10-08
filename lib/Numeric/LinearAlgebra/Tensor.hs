@@ -27,7 +27,7 @@ module Numeric.LinearAlgebra.Tensor (
 ) where
 
 import Numeric.LinearAlgebra.Array.Internal
-import Numeric.LinearAlgebra hiding (rank)
+import Numeric.LinearAlgebra
 import Numeric.LinearAlgebra.Array
 
 type Tensor t = NArray Variant t
@@ -89,14 +89,14 @@ forget = mapTypes (const None)
 
 --------------------------------------------------------------
 
--- | Create a contravariant rank-1 tensor from a list of coordinates.
+-- | Create a contravariant 1st order tensor from a list of coordinates.
 vector :: [Double] -> Tensor Double
 vector   = fromVector Contra . fromList
 
--- | Create a covariant rank-1 tensor from a list of coordinates.
+-- | Create a covariant 1st order tensor from a list of coordinates.
 covector :: [Double] -> Tensor Double
 covector = fromVector Co . fromList
 
--- | Create a 1-contravariant, 1-covariant rank-2 tensor from list of lists of coordinates.
+-- | Create a 1-contravariant, 1-covariant 2nd order from list of lists of coordinates.
 transf :: [[Double]] -> Tensor Double
 transf   = fromMatrix Contra Co . fromLists

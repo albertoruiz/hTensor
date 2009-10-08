@@ -24,7 +24,7 @@
 module Numeric.LinearAlgebra.Array.Internal (
     -- * Data structures
     NArray, Idx(..), Name,
-    rank, names, size, typeOf , dims, coords,
+    order, names, size, typeOf , dims, coords,
     Compat(..),
     -- * Array creation
     scalar,
@@ -149,8 +149,8 @@ typeOf n t = (iType . head) (filter ((n==).iName) (dims t))
 
 
 -- | The number of dimensions of a multidimensional array.
-rank :: NArray i t -> Int
-rank = length . dims
+order :: NArray i t -> Int
+order = length . dims
 
 ----------------------------------------------------------
 
@@ -344,16 +344,16 @@ mapTail _ x     = x
 formatAux f x = unlines . addds . els . fmt ms $ x where
     fmt [] _ = undefined -- cannot happen
     fmt (g:gs) t
-        | rank t == 0 = rect (f (coords t @> 0))
-        | rank t == 1 =  rect $ unwords $ map f (toList $ coords t)
-        | rank t == 2 =  decor t $ rect $ w1 $ format " " f (reshape (iDim $ last $ dims t) (coords t))
+        | order t == 0 = rect (f (coords t @> 0))
+        | order t == 1 =  rect $ unwords $ map f (toList $ coords t)
+        | order t == 2 =  decor t $ rect $ w1 $ format " " f (reshape (iDim $ last $ dims t) (coords t))
         | otherwise    = decor t (g ps)
       where ps = map (fmt gs ) (partsRaw t (head (names t)))
     ds = showNice (filter ((/='*').head.iName) $ dims x)
     addds = if null ds then (showRawDims (dims x) :) else (ds:)
     w1 = unlines . map (' ':) . lines
     ms = cycle [dispV 1, dispH 2]
-    decor t | odd (rank t) = id
+    decor t | odd (order t) = id
             | otherwise = decorLeft  (names t!!0) . decorUp (names t!!1)
 
 
@@ -367,7 +367,7 @@ formatArray :: (Coord t, Compat i)
       => (t -> String) -- ^ format function (eg. printf \"5.2f\")
       -> NArray i t
       -> String
-formatArray f t | odd (rank t) = formatAux f (dummyAt 0 t)
+formatArray f t | odd (order t) = formatAux f (dummyAt 0 t)
             | otherwise    = formatAux f t
 
 
@@ -484,27 +484,27 @@ common f = commonval . map f where
 -- | Extract the 'Matrix' corresponding to a two-dimensional array,
 -- in the rows,cols order.
 asMatrix :: (Coord t) => NArray i t -> Matrix t
-asMatrix a | rank a == 2 = reshape c (coords a)
-           | otherwise = error $ "asMatrix requires a rank 2 array."
+asMatrix a | order a == 2 = reshape c (coords a)
+           | otherwise = error $ "asMatrix requires a 2nd order array."
     where c = size (last (names a)) a
 
 -- | Extract the 'Vector' corresponding to a one-dimensional array.
 asVector :: (Coord t) => NArray i t -> Vector t
-asVector a | rank a == 1 = coords a
-           | otherwise = error $ "asVector requires a rank 1 array."
+asVector a | order a == 1 = coords a
+           | otherwise = error $ "asVector requires a 1st order array."
 
 -- | Extract the scalar element corresponding to a 0-dimensional array.
 asScalar :: (Coord t) => NArray i t -> t
-asScalar a | rank a == 0 = coords a @>0
-           | otherwise = error $ "asScalar requires a rank 0 array."
+asScalar a | order a == 0 = coords a @>0
+           | otherwise = error $ "asScalar requires a 0th order array."
 
 ------------------------------------------------------------------------
 
--- | Create a rank-1 array from an hmatrix 'Vector'.
+-- | Create a 1st order array from a 'Vector'.
 fromVector :: Compat i => i -> Vector t -> NArray i t
 fromVector i v = mkNArray [Idx (dim v) "1" i ] v
 
--- | Create a rank-2 array from an hmatrix 'Matrix'.
+-- | Create a 2nd order array from a 'Matrix'.
 fromMatrix :: (Compat i, Coord t) => i -> i -> Matrix t -> NArray i t
 fromMatrix ir ic m = mkNArray [Idx (rows m) "1" ir,
                                Idx (cols m) "2" ic] (flatten m)

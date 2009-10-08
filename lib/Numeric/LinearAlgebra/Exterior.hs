@@ -43,7 +43,7 @@ signature l | length (nub l) < length l =  0
             | otherwise                 = -1
 
 gsym f t = mkNArray (dims t) (coords $ sum ts) where
-    ns = map show [1 .. rank t]
+    ns = map show [1 .. order t]
     t' = cov $ renameRaw t ns
     per = permutations ns
     ts  = map (flip renameRaw ns . f . flip reorder t') per
@@ -55,7 +55,7 @@ antisymmetrize t = gsym scsig t
 
 fact n = product [1..n]
 
-wedge a b = antisymmetrize (a*b) * (recip . fromIntegral) (fact (rank a) * fact (rank b))
+wedge a b = antisymmetrize (a*b) * (recip . fromIntegral) (fact (order a) * fact (order b))
 
 infixl 5 /\
 -- | The exterior (wedge) product of two tensors. Obtains the union of subspaces.
@@ -75,7 +75,7 @@ a /\ b = renseq (wedge a' b')
 
 levi n = listTensor (replicate n n) $ map signature $ sequence (replicate n [1..n])
 
--- | The full antisymmetric tensor of rank n (contravariant version).
+-- | The full antisymmetric tensor of order n (contravariant version).
 leviCivita :: Int -> Tensor Double
 leviCivita = (map levi [0..] !!)
 
@@ -103,12 +103,12 @@ inner :: (Coord t)
       => Tensor t
       -> Tensor t
       -> Tensor t
-inner a b | rank a < rank b = switch (renseq a) * renseq b * k
+inner a b | order a < order b = switch (renseq a) * renseq b * k
           | otherwise       = renseq a * switch (renseq b) * k
-    where k = recip . fromIntegral $ fact $ min (rank a) (rank b)
+    where k = recip . fromIntegral $ fact $ min (order a) (order b)
 
-renseq t = renameRaw t (map show [1..rank t])
-renseq' t = renameRaw t (map ((' ':).show) [1..rank t])
+renseq t = renameRaw t (map show [1..order t])
+renseq' t = renameRaw t (map ((' ':).show) [1..order t])
 
 isScalar = null . dims
 

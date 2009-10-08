@@ -17,7 +17,7 @@ module Numeric.LinearAlgebra.Array.Util (
     Coord, Compat(..),
     NArray, Idx(..), Name,
     scalar,
-    rank, names, size, typeOf, dims, coords,
+    order, names, size, typeOf, dims, coords,
 
     rename, (!),
 

@@ -51,6 +51,7 @@ module Numeric.LinearAlgebra.Array.Internal (
     dummyAt, noIdx,
     basisOf,
     common,
+    firstIdx,
     Coord,
     asMatrix, asVector, asScalar
 ) where
@@ -61,6 +62,8 @@ import Numeric.LinearAlgebra(outer,multiply,Field)
 import Control.Applicative
 import Data.Function(on)
 import Text.Printf
+import Control.Parallel.Strategies
+
 
 -- | Types that can be elements of the multidimensional arrays.
 class (Num (Vector t), Field t) => Coord t
@@ -560,3 +563,7 @@ makeConformantT (t1,t2) =
         Just alldims -> (extend alldims t1, extend alldims t2)
         Nothing -> error $ "makeConformantT with inconsistent dimensions "
                          ++ show (dims t1, dims t2)
+
+---------------------------------------------
+instance (NFData t, Element t) => NFData (NArray i t) where
+    rnf = rnf . coords

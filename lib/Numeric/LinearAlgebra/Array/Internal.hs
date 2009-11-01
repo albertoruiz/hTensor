@@ -51,7 +51,7 @@ module Numeric.LinearAlgebra.Array.Internal (
     dummyAt, noIdx,
     basisOf,
     common,
-    firstIdx,
+    firstIdx, fibers,
     Coord,
     asMatrix, asVector, asScalar
 ) where
@@ -167,6 +167,10 @@ firstIdx name t = (nd,m')
           m' = reshape c $ flatten $ trans m
           nd = d2++d1
           c = dim (coords t) `div` (iDim $ head d2)
+
+-- | Obtain a matrix whose columns are the fibers of the array in the given dimension.
+fibers :: Coord t => Name -> NArray i t -> Matrix t
+fibers n = snd . firstIdx n
 
 
 -- | Create a list of the substructures at the given level.

@@ -36,6 +36,7 @@ module Numeric.LinearAlgebra.Array.Util (
     makeConformant,
     basisOf,
     asScalar, asVector, asMatrix,
+    fibers,
     fromVector, fromMatrix,
     Container(..),
 ) where

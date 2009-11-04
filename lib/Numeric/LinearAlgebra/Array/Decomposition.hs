@@ -16,21 +16,24 @@ module Numeric.LinearAlgebra.Array.Decomposition (
     hosvd, truncateFactors,
     -- * CP
     cpAuto, cpRun, cpInitRandom, cpInitSvd,
+    -- * Multilinear solve
+    multilinearSolve, alsInitRandom,
     -- * Utilities
-    diagT, takeDiagT
+    diagT, takeDiagT, eqnorm
 ) where
 
 import Numeric.LinearAlgebra.Array
 import Numeric.LinearAlgebra.Array.Util
 import Numeric.LinearAlgebra hiding ((.*))
-import Numeric.LinearAlgebra.LAPACK (linearSolveLSR)
+import Numeric.LinearAlgebra.LAPACK
 import Data.List
 import Control.Parallel.Strategies
 import System.Random
 
--- import Debug.Trace
--- 
--- debug x = trace (show x) x
+import Debug.Trace
+
+debug x = trace (show x) x
+debug' m f x = trace (m ++ show (f x)) x
 
 {- | Multilinear Singular Value Decomposition (or Tucker's method, see Lathauwer et al.).
 
@@ -215,8 +218,9 @@ cpInitSeq rs t k = ones:as where
     ts = takes (map (*k) (sizes t)) rs
     as = zipWith4 f ts auxIndx (names t) (sizes t)
     f c n1 n2 p = ([k,p] # c) `rename` [n1,n2]
-    takes [] _ = []
-    takes (n:ns) xs = take n xs : takes ns (drop n xs)
+
+takes [] _ = []
+takes (n:ns) xs = take n xs : takes ns (drop n xs)
 
 -- | pseudorandom cp inicialization from a given seed
 cpInitRandom :: Int        -- ^ seed
@@ -224,3 +228,67 @@ cpInitRandom :: Int        -- ^ seed
              -> Int        -- ^ rank
              -> [NArray None Double] -- ^ random starting point
 cpInitRandom seed = cpInitSeq (randomRs (-1,1) (mkStdGen seed))
+
+----------------------------------------------------------------------
+
+{- | (In construction)
+
+Given two arrays t (target) and s (source) of order n, we try to compute linear transformations as for each dimension, such that product (s:as) == t.
+   We use a simple alternating least squares method.
+-}
+multilinearSolve :: ([Array Double]->[Array Double]) -- ^ post processing of the solution after each iteration (e.g. id or eqnorm)
+
+                 -> Double  -- ^ delta: minimum relative improvement in the optimization (percent, e.g. 0.1)
+                 -> Double  -- ^ epsilon: desired relative reconstruction error (percent, e.g. 1E-3)
+                 -> Array Double -- ^ target
+                 -> Array Double -- ^ source
+                 -> ([Array Double],[Double]) -- ^ solution (including source) and error history
+multilinearSolve = als
+
+
+-- als' delta epsilon r t = alsRun (t:ids)  delta epsilon r  where
+--     ids = zipWith3 f (sizes t) (names r) (names t)
+--     f d n1 n2 = fromMatrix None None (ident d) `rename` [n1,n2]
+
+als post delta epsilon r t = alsRun post (alsInitRandom 170 r t) delta epsilon r
+
+alsInitSeq rs r t = t':as where
+    ir = names r
+    it = take (order t) $ (names t ++ map return ['a'..]) \\ names r
+    t' = rename t it
+    nr = sizes r
+    nt = sizes t
+    ts = takes (zipWith (*) nr nt) rs
+    as = zipWith5 f ts ir it nr nt
+    f c i1 i2 n1 n2 = ([n1,n2] # c) `rename` [i1,i2]
+
+alsInitRandom seed r t = alsInitSeq (randomRs (-1,1) (mkStdGen seed)) r t
+
+alsRun post s0 delta epsilon t = (sol,e) where
+    sols = iterate (post . alsStep t) s0
+    errs = map (\s -> 100 * frobT (t - product s) / frobT t) sols
+    (sol,e) = convergence delta epsilon (zip sols errs) []
+
+alsStep t = foldl1' (.) (map (alsArg t) [1..order t])
+
+alsArg _ _ [] = error "alsArg _ _ []"
+alsArg t k (d:as) = {-debug' "dec = "  (const (names prod,names prod',names ta,e1,e2,e3))-} sol where
+    [n1,n2] = names (as!!(k-1))
+    prod = product $ d : dropElemPos k as
+    prod' = rename prod $ replaceElem n2 n1 (names prod)
+    ta = reorder (names t) prod'
+    fa = trans $ fibers n1 ta
+    ft = trans $ fibers n1 t
+    a = trans $ linearSolveSVD ({-debug' "ra = " rank-} fa) ft
+    ar = fromMatrix None None a `rename` [n1,n2]
+    sol = d: replaceElemPos k ar as
+--     e1 = frobT $ product (d:as) - t
+--     e2 = frobT $ product sol - t
+--     e3 = pnorm PNorm2 (fa<>trans a - ft)
+
+eqnorm [] = error "eqnorm []"
+eqnorm (t:as) = t:as' where
+    n = length as
+    fs = map frobT as
+    s = product fs ** (1/fromIntegral n)
+    as' = zipWith g as fs where g a f = a * scalar (s/f)

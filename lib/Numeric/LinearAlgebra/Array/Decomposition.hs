@@ -30,10 +30,10 @@ import Data.List
 import Control.Parallel.Strategies
 import System.Random
 
-import Debug.Trace
-
-debug x = trace (show x) x
-debug' m f x = trace (m ++ show (f x)) x
+-- import Debug.Trace
+-- 
+-- debug x = trace (show x) x
+-- debug' m f x = trace (m ++ show (f x)) x
 
 {- | Multilinear Singular Value Decomposition (or Tucker's method, see Lathauwer et al.).
 

@@ -53,6 +53,7 @@ library
                         Numeric.LinearAlgebra.Tensor
                         Numeric.LinearAlgebra.Exterior
                         Numeric.LinearAlgebra.Multivector
+                        Numeric.LinearAlgebra.Array.Solve
                         Numeric.LinearAlgebra.Array.Decomposition
 
     other-modules:      Numeric.LinearAlgebra.Array.Internal

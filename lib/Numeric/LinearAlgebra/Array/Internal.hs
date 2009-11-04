@@ -51,7 +51,7 @@ module Numeric.LinearAlgebra.Array.Internal (
     dummyAt, noIdx,
     basisOf,
     common,
-    firstIdx, fibers,
+    firstIdx, fibers, matrixator,
     Coord,
     asMatrix, asVector, asScalar
 ) where
@@ -168,10 +168,18 @@ firstIdx name t = (nd,m')
           nd = d2++d1
           c = dim (coords t) `div` (iDim $ head d2)
 
--- | Obtain a matrix whose columns are the fibers of the array in the given dimension.
+-- | Obtain a matrix whose columns are the fibers of the array in the given dimension. The column order depends on the selected index (see 'matrixator').
 fibers :: Coord t => Name -> NArray i t -> Matrix t
 fibers n = snd . firstIdx n
 
+-- | Reshapes an array as a matrix with the desired dimensions as flattened rows and flattened columns.
+matrixator :: (Coord t) => NArray i t -- ^ input array
+                        -> [Name]    -- ^ row dimensions
+                        -> [Name]    -- ^ column dimensions
+                        -> Matrix t   -- ^ result
+matrixator t nr nc = reshape s (coords q) where
+    q = reorder (nr++nc) t
+    s = product (map (flip size t) nc)
 
 -- | Create a list of the substructures at the given level.
 parts :: (Coord t) 

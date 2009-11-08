@@ -36,6 +36,7 @@ data Variant = Co | Contra deriving (Eq)
 
 instance Compat Variant where
     compat d1 d2 = iDim d1 == iDim d2 && iType d1 /= iType d2
+    opos (Idx n s x) = Idx n s (flipV x)
 
 instance Show (Idx Variant) where
     show (Idx n s Co)     = show n ++ "_" ++ s

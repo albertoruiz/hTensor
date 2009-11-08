@@ -1,5 +1,6 @@
 import Numeric.LinearAlgebra.Array
 import Numeric.LinearAlgebra.Array.Util
+import Numeric.LinearAlgebra.Array.Solve
 import Numeric.LinearAlgebra.Array.Decomposition
 import Numeric.LinearAlgebra hiding ((.*))
 import Data.List
@@ -86,14 +87,24 @@ main = do
 -- (./) = zipArray (/)
 
 frobT = pnorm PNorm2 . coords
+unitT t = t * scalar (recip (frobT t))
 
 -----------------------------
 
-a = [2,4,3,2]#[1..] -- !"pqr"
+-- a = [2,4,3,2]#[1..] !"pqrs"
+-- b = [3,5,7,4]#[5,9..] !"ijkl"
 
-b = [3,5,7,4]#[5,9..]  -- !"ijk"
+b = [2,4,3,2]#[1..] !"pqrs"
+a = [3,5,4,4]#[5,9..] !"ijkl"
+
+
+--a = [2,2,2,2]#[1..] !"pqrs"
+--b = [3,3,3,3]#[5,9..] !"ijkl"
+
 
 kk = multilinearSolve eqnorm 0.1 1E-3  a b
+
+s0 = alsInitRandom 170 a b
 
 pru f a b = head $ snd $ multilinearSolve f 0.1 1E-3  a b
 
@@ -105,3 +116,29 @@ test = do
     sh (product (fst kk))
     mapM_ sh (fst kk)
     print $ map frobT (fst kk)
+
+
+p0 = alsArg a 2 $ alsArg a 1 s0
+q0 = alsArg' a 2 $ alsArg' a 1 s0
+p = alsArg a 3 p0
+q = alsArg' a 3 p0
+--p = alsArg a 3 s0
+--q = alsArg' a 3 s0
+xx = alsArg' a 1 $ alsArg' a 4 $ alsArg' a 3 $ alsArg' a 2 $ alsArg' a 1 s0
+
+test2 = do
+    
+--    sh $ unitT $ p0!!3
+--    sh $ unitT $ q0!!3
+    sh $ id $ p!!3
+    sh $ id $ q!!3
+    print $ 100 * frobT (p!!3 - q!!3) / frobT (p!!3)
+--    mapM_ sh $ tail $ alsArg a 3 s0
+--    mapM_ sh $ tail $ alsArg' a 3 s0
+--    print $ frobT (product p0 - product q0)
+--    mapM_ (print . dims) s0
+--    mapM_ (print . dims) p0
+--    mapM_ (print . dims) q0
+--    mapM_ (print . dims) p
+--    mapM_ (print . dims) q
+--    mapM_ (print . dims) xx

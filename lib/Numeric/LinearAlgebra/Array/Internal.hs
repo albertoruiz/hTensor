@@ -237,6 +237,7 @@ liftNA2 f (A d1 v1) (A _d2 v2) = A d1 (f v1 v2)
 -- | Class of compatible indices for contractions.
 class (Eq a, Show (Idx a)) => Compat a where
     compat :: Idx a -> Idx a -> Bool
+    opos   :: Idx a -> Idx a
 
 
 
@@ -463,7 +464,7 @@ dummyAt :: Int -> NArray i t -> NArray i t
 dummyAt k t = mkNArray d' (coords t) where
     (d1,d2) = splitAt k (dims t)
     d' = d1 ++ d : d2
-    d = Idx 1 "*" undefined
+    d = Idx 1 "*" (iType (head (dims t))) -- undefined
 
 -- | Rename indices so that they are not shown in formatted output.
 noIdx :: Compat i => NArray i t -> NArray i t
@@ -543,7 +544,11 @@ onIndex :: (Coord a, Coord b, Compat i) =>
      -> Name
      -> NArray i a
      -> NArray i b
-onIndex f name t = reorder (names t) $ newIndex (typeOf name t) name (f (parts t name))
+onIndex f name t = r where
+     r = if sort (names x) == sort (names t)
+            then reorder (names t) x
+            else x
+     x = newIndex (typeOf name t) name (f (parts t name))
 
 ------------------------------------------------------------------------
 

@@ -24,6 +24,7 @@ module Numeric.LinearAlgebra.Array.Decomposition (
 
 import Numeric.LinearAlgebra.Array
 import Numeric.LinearAlgebra.Array.Util
+import Numeric.LinearAlgebra.Array.Solve
 import Numeric.LinearAlgebra hiding ((.*))
 import Numeric.LinearAlgebra.LAPACK
 import Data.List
@@ -243,14 +244,14 @@ multilinearSolve :: ([Array Double]->[Array Double]) -- ^ post processing of the
                  -> Array Double -- ^ target
                  -> Array Double -- ^ source
                  -> ([Array Double],[Double]) -- ^ solution (including source) and error history
-multilinearSolve = als
+multilinearSolve post delta epsilon r t = als post r (alsInitRandom 170 r t) delta epsilon
+-- multilinearSolve = als'
 
-
--- als' delta epsilon r t = alsRun (t:ids)  delta epsilon r  where
+-- als'' delta epsilon r t = alsRun (t:ids)  delta epsilon r  where
 --     ids = zipWith3 f (sizes t) (names r) (names t)
 --     f d n1 n2 = fromMatrix None None (ident d) `rename` [n1,n2]
 
-als post delta epsilon r t = alsRun post (alsInitRandom 170 r t) delta epsilon r
+-- als' post delta epsilon r t = alsRun post (alsInitRandom 170 r t) delta epsilon r
 
 alsInitSeq rs r t = t':as where
     ir = names r
@@ -264,27 +265,31 @@ alsInitSeq rs r t = t':as where
 
 alsInitRandom seed r t = alsInitSeq (randomRs (-1,1) (mkStdGen seed)) r t
 
-alsRun post s0 delta epsilon t = (sol,e) where
-    sols = iterate (post . alsStep t) s0
-    errs = map (\s -> 100 * frobT (t - product s) / frobT t) sols
-    (sol,e) = convergence delta epsilon (zip sols errs) []
-
-alsStep t = foldl1' (.) (map (alsArg t) [1..order t])
-
-alsArg _ _ [] = error "alsArg _ _ []"
-alsArg t k (d:as) = {-debug' "dec = "  (const (names prod,names prod',names ta,e1,e2,e3))-} sol where
-    [n1,n2] = names (as!!(k-1))
-    prod = product $ d : dropElemPos k as
-    prod' = rename prod $ replaceElem n2 n1 (names prod)
-    ta = reorder (names t) prod'
-    fa = trans $ fibers n1 ta
-    ft = trans $ fibers n1 t
-    a = trans $ linearSolveSVD ({-debug' "ra = " rank-} fa) ft
-    ar = fromMatrix None None a `rename` [n1,n2]
-    sol = d: replaceElemPos k ar as
---     e1 = frobT $ product (d:as) - t
---     e2 = frobT $ product sol - t
---     e3 = pnorm PNorm2 (fa<>trans a - ft)
+-- alsRun post s0 delta epsilon t = (sol,e) where
+--     sols = iterate (post . alsStep t) s0
+--     errs = map (\s -> 100 * frobT (t - product s) / frobT t) sols
+--     (sol,e) = convergence delta epsilon (zip sols errs) []
+-- 
+-- alsStep t = foldl1' (.) (map (alsArg t) [1..order t])
+-- 
+-- sv m = let (_,s,_) = svd m in s
+-- 
+-- 
+-- alsArg _ _ [] = error "alsArg _ _ []"
+-- alsArg t k (d:as) = {-debug' "dec = "  (const (names prod,names prod',names ta,e1,e2,e3))-} sol where
+--     [n1,n2] = names (as!!(k-1))
+--     prod = product $ d : dropElemPos k as
+--     prod' = rename prod $ replaceElem n2 n1 (names prod)
+--     ta = reorder (names t) prod'
+--     fa = {-debug' "aOK: " id $-} trans $ fibers n1 ta
+--     ft = {-debug' "bOK: " id $-} trans $ fibers n1 t
+--     a = trans $ linearSolveSVD (debug' "info = " (const info) fa) ft
+--     ar = fromMatrix None None a `rename` ({-debug' "namesOK: " id-} [n1,n2])
+--     sol = d: replaceElemPos k ar as
+--     info = ((rows fa, cols fa, cols ft), rank fa, rcond fa, sv fa)
+-- --     e1 = frobT $ product (d:as) - t
+-- --     e2 = frobT $ product sol - t
+-- --     e3 = pnorm PNorm2 (fa<>trans a - ft)
 
 eqnorm [] = error "eqnorm []"
 eqnorm (t:as) = t:as' where

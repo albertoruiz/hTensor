@@ -35,6 +35,7 @@ data None = None deriving Eq
 
 instance Compat None where
     compat d1 d2 = iDim d1 == iDim d2
+    opos = id
 
 
 -- | Multidimensional array with unespecified coordinate type.

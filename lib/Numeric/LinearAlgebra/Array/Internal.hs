@@ -51,9 +51,11 @@ module Numeric.LinearAlgebra.Array.Internal (
     dummyAt, noIdx,
     basisOf,
     common,
+    selDims,
     firstIdx, fibers, matrixator,
     Coord,
-    asMatrix, asVector, asScalar
+    asMatrix, asVector, asScalar,
+    debug
 ) where
 
 import Data.Packed
@@ -63,7 +65,9 @@ import Control.Applicative
 import Data.Function(on)
 import Text.Printf
 import Control.Parallel.Strategies
+import Debug.Trace
 
+debug m f x = trace (m ++ show (f x)) x
 
 -- | Types that can be elements of the multidimensional arrays.
 class (Num (Vector t), Field t) => Coord t
@@ -154,6 +158,9 @@ typeOf n t = (iType . head) (filter ((n==).iName) (dims t))
 -- | The number of dimensions of a multidimensional array.
 order :: NArray i t -> Int
 order = length . dims
+
+selDims ds = map f where
+    f n = head $ filter ((n==).iName) ds
 
 ----------------------------------------------------------
 

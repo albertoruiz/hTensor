@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Packed.Array.Decomposition
@@ -17,12 +18,13 @@ module Numeric.LinearAlgebra.Array.Decomposition (
     -- * CP
     cpAuto, cpRun, cpInitRandom, cpInitSvd,
     -- * Multilinear solve
-    multilinearSolve, alsInitRandom,
+    solveFactors, solveFactorsH,
     -- * Utilities
     diagT, takeDiagT, eqnorm
 ) where
 
 import Numeric.LinearAlgebra.Array
+import Numeric.LinearAlgebra.Array.Internal(mkNArray, selDims)
 import Numeric.LinearAlgebra.Array.Util
 import Numeric.LinearAlgebra.Array.Solve
 import Numeric.LinearAlgebra hiding ((.*))
@@ -31,10 +33,6 @@ import Data.List
 import Control.Parallel.Strategies
 import System.Random
 
--- import Debug.Trace
--- 
--- debug x = trace (show x) x
--- debug' m f x = trace (m ++ show (f x)) x
 
 {- | Multilinear Singular Value Decomposition (or Tucker's method, see Lathauwer et al.).
 
@@ -234,17 +232,20 @@ cpInitRandom seed = cpInitSeq (randomRs (-1,1) (mkStdGen seed))
 
 {- | (In construction)
 
-Given two arrays t (target) and s (source) of order n, we try to compute linear transformations as for each dimension, such that product (s:as) == t.
+Given two arrays a (source) and  b (target), we try to compute linear transformations x,y,z,... for each dimension, such that product [a,x,y,z,...] == b.
    We use a simple alternating least squares method.
 -}
-multilinearSolve :: ([Array Double]->[Array Double]) -- ^ post processing of the solution after each iteration (e.g. id or eqnorm)
+solveFactors :: (Coord t, Random t, Compat i, Num (NArray i t), Normed (Vector t))
+             => Int          -- ^ seed for random initialization
+             -> ([NArray i t]->[NArray i t]) -- ^ post processing of the solution after each iteration (e.g. id or eqnorm)
+             -> Double  -- ^ delta: minimum relative improvement in the optimization (percent, e.g. 0.1)
+             -> Double  -- ^ epsilon: desired relative reconstruction error (percent, e.g. 1E-3)
+             -> NArray i t -- ^ source
+             -> NArray i t -- ^ target
+             -> ([NArray i t],[Double]) -- ^ solution and error history
+solveFactors seed post delta epsilon a b =
+    mlSolve post delta epsilon a (initFactorsRandom seed a b) b
 
-                 -> Double  -- ^ delta: minimum relative improvement in the optimization (percent, e.g. 0.1)
-                 -> Double  -- ^ epsilon: desired relative reconstruction error (percent, e.g. 1E-3)
-                 -> Array Double -- ^ target
-                 -> Array Double -- ^ source
-                 -> ([Array Double],[Double]) -- ^ solution (including source) and error history
-multilinearSolve post delta epsilon r t = als post r (alsInitRandom 170 r t) delta epsilon
 -- multilinearSolve = als'
 
 -- als'' delta epsilon r t = alsRun (t:ids)  delta epsilon r  where
@@ -253,17 +254,42 @@ multilinearSolve post delta epsilon r t = als post r (alsInitRandom 170 r t) del
 
 -- als' post delta epsilon r t = alsRun post (alsInitRandom 170 r t) delta epsilon r
 
-alsInitSeq rs r t = t':as where
-    ir = names r
-    it = take (order t) $ (names t ++ map return ['a'..]) \\ names r
-    t' = rename t it
-    nr = sizes r
-    nt = sizes t
+initFactorsSeq rs a b = as where
+    ir = names b
+    it = names a
+    nr = sizes b
+    nt = sizes a
     ts = takes (zipWith (*) nr nt) rs
-    as = zipWith5 f ts ir it nr nt
-    f c i1 i2 n1 n2 = ([n1,n2] # c) `rename` [i1,i2]
+    as = zipWith5 f ts ir it (selDims (dims a) ir) (selDims (dims a) it)
+    f c i1 i2 d1 d2 = (mkNArray (map opos [d1,d2]) (fromList c)) `rename` [i1,i2]
 
-alsInitRandom seed r t = alsInitSeq (randomRs (-1,1) (mkStdGen seed)) r t
+initFactorsRandom seed a b = initFactorsSeq (randomRs (-1,1) (mkStdGen seed)) a b
+
+
+-- | Homogeneous factorized system. Given an array a and a list of pairs of indices [\"pi\",\"qj\", \"rk\", etc.], we try to compute linear transformations x!\"pi\", y!\"pi\", z!\"rk\", etc ... such that product [a,x,y,z,...] == 0. We use a simple alternating least squares method.
+solveFactorsH
+  :: (Coord t, Random t, Compat i, Num (NArray i t), Normed (Vector t))
+     => Int -- ^ seed for random initialization
+     -> ([NArray i t] -> [NArray i t]) -- ^ post processing of the solution after each iteration (e.g. id)
+     -> Double -- ^ delta: minimum relative improvement in the optimization (percent, e.g. 0.1)
+     -> Double -- ^ epsilon: frob norm of the right hand side
+     -> NArray i t -- ^ coefficients (a)
+     -> [[Char]] -- ^ list of index pairs for the factors
+     -> ([NArray i t], [Double]) -- ^ solution and error history
+solveFactorsH seed post delta epsilon a pairs =
+    mlSolveH post delta epsilon a (initFactorsHRandom seed a pairs)
+
+
+
+initFactorsHSeq rs a pairs = as where
+    [ir,it] = map (map return) (transpose pairs)
+    nr = map (flip size a) ir
+    nt = map (flip size a) it
+    ts = takes (zipWith (*) nr nt) rs
+    as = zipWith5 f ts ir it (selDims (dims a) ir) (selDims (dims a) it)
+    f c i1 i2 d1 d2 = (mkNArray (map opos [d1,d2]) (fromList c)) `rename` [i1,i2]
+
+initFactorsHRandom seed a pairs = initFactorsHSeq (randomRs (-1,1) (mkStdGen seed)) a pairs
 
 -- alsRun post s0 delta epsilon t = (sol,e) where
 --     sols = iterate (post . alsStep t) s0
@@ -292,7 +318,7 @@ alsInitRandom seed r t = alsInitSeq (randomRs (-1,1) (mkStdGen seed)) r t
 -- --     e3 = pnorm PNorm2 (fa<>trans a - ft)
 
 eqnorm [] = error "eqnorm []"
-eqnorm (t:as) = t:as' where
+eqnorm as = as' where
     n = length as
     fs = map frobT as
     s = product fs ** (1/fromIntegral n)

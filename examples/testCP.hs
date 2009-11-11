@@ -53,7 +53,6 @@ frobT = pnorm PNorm2 . coords
 
 unitT t = t / scalar (frobT t)
 
-sizes = map iDim . dims
 
 testCP finit r ns delta epsilon = do
     t <- product `fmap` randomArrayRank r ns

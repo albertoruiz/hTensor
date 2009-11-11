@@ -111,8 +111,6 @@ frobT t = pnorm PNorm2 . coords $ t
 dropElemPos k xs = take k xs ++ drop (k+1) xs
 replaceElemPos k v xs = take k xs ++ v : drop (k+1) xs
 
-sizes = map iDim . dims
-
 takes [] _ = []
 takes (n:ns) xs = take n xs : takes ns (drop n xs)
 

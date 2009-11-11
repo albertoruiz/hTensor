@@ -17,7 +17,7 @@ module Numeric.LinearAlgebra.Array.Util (
     Coord, Compat(..),
     NArray, Idx(..), Name,
     scalar,
-    order, names, size, typeOf, dims, coords,
+    order, names, size, sizes, typeOf, dims, coords,
 
     rename, (!),
 
@@ -35,6 +35,7 @@ module Numeric.LinearAlgebra.Array.Util (
     sameStructure,
     makeConformant,
     basisOf,
+    atT, takeDiagT, diagT,
     asScalar, asVector, asMatrix,
     fibers, matrixator,
     fromVector, fromMatrix,
@@ -43,3 +44,18 @@ module Numeric.LinearAlgebra.Array.Util (
 
 import Numeric.LinearAlgebra.Array.Internal
 import Data.Packed(Container(..))
+import Numeric.LinearAlgebra.Array.Simple
+import Data.List(intersperse)
+
+-- infixl 9 #
+-- (#) :: [Int] -> [Double] -> Array Double
+-- (#) = listArray
+
+-- | Multidimensional diagonal of given order.
+diagT :: [Double] -> Int -> Array Double
+diagT v n = replicate n k `listArray` concat (intersperse z (map return v))
+    where k = length v
+          tot = k^n
+          nzeros = (tot - k) `div` (k-1)
+          z = replicate nzeros 0
+

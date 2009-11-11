@@ -18,19 +18,16 @@ module Numeric.LinearAlgebra.Array.Decomposition (
     -- * CP
     cpAuto, cpRun, cpInitRandom, cpInitSvd,
     -- * Utilities
-    diagT, takeDiagT, eqnorm
+    eqnorm
 ) where
 
-import Numeric.LinearAlgebra.Array.Internal
 import Numeric.LinearAlgebra.Array
 import Numeric.LinearAlgebra.Array.Util
 import Numeric.LinearAlgebra.Array.Solve
 import Numeric.LinearAlgebra hiding ((.*))
-import Numeric.LinearAlgebra.LAPACK
 import Data.List
 import System.Random
 import Control.Parallel.Strategies
-
 
 
 {- | Multilinear Singular Value Decomposition (or Tucker's method, see Lathauwer et al.).
@@ -78,33 +75,11 @@ truncateFactors ns (c:rs) = ttake ns c : zipWith f rs ns
 
 ------------------------------------------------------------------------
 
-cpArg _ _ [] = error "cpArg _ _ []"
-cpArg t k (d:as) = d': replaceElemPos k ar as where
-    [n1,n2] = names (as!!(k-1))
-    namesta = replaceElem n2 n1 (names t)
-    ta = reorder namesta (product $ d : dropElemPos k as)
-    fa = trans $ fibers n1 ta
-    ft = trans $ fibers n2 t
-    a = toRows $ linearSolveLSR fa ft
-    scs = map (pnorm PNorm2) a
-    d' = d .* (diagT scs (order t) `rename` (names d))
-    au = fromRows $ zipWith (*/) a scs
-    ar = fromMatrix None None au `rename` [n1,n2]
+frobT = pnorm PNorm2 . coords
 
--- | Basic optimization step for the CP approximation
-cpStep :: Array Double -> [Array Double] -> [Array Double]
-cpStep t = foldl1' (.) (map (cpArg t) [1..order t])
+------------------------------------------------------------------------
 
-convergence _ _ [] _ = error "convergence on finite sequence"
-convergence _ _ [_] _ = error "convergence on finite sequence"
-convergence epsrel epsabs ((s1,e1):(s2,e2):ses) prev
-    | e1 < epsabs = (s1, e1:prev)
-    | abs (100*(e1 - e2)/e1) < epsrel = (s2, e2:prev)
-    | otherwise = convergence epsrel epsabs ((s2,e2):ses) (e1:prev)
-
-sizes = map iDim . dims
-
-
+unitRows [] = error "unitRows []"
 unitRows (c:as) = foldl1' (.*) (c:xs) : as' where
     (xs,as') = unzip (map g as)
     g a = (x,a')
@@ -134,11 +109,6 @@ cpRun s0 delta epsilon t = (unitRows $ head s0 : sol, errs) where
     (sol,errs) = mlSolve id delta epsilon (head s0) (tail s0) t
 
 
-
-cpRun' s0 delta epsilon t = (sol,e) where
-    sols = iterate (cpStep t) s0
-    errs = map (\s -> 100 * frobT (t - product s) / frobT t) sols
-    (sol,e) = convergence delta epsilon (zip sols errs) []
 
 {- | Experimental implementation of the CP decomposition, based on alternating
      least squares. We try approximations of increasing rank, until the relative reconstruction error is below a desired percent of Frobenius norm (epsilon).
@@ -175,48 +145,7 @@ cpAuto finit delta epsilon t = fst . head . filter ((<epsilon). head . snd)
 
 ----------------------
 
-dropElemPos k xs = take (k-1) xs ++ drop k xs
-
-replaceElemPos k v xs = take (k-1) xs ++ v : drop k xs
-
-replaceElem x v xs = map f xs where
-    f a | x==a      = v
-        | otherwise = a
-
-frobT = pnorm PNorm2 . coords
-
-infixl 9 #
-(#) :: [Int] -> [Double] -> Array Double
-(#) = listArray
-
--- | Multidimensional diagonal of given order.
-diagT :: [Double] -> Int -> Array Double
-diagT v n = replicate n k # concat (intersperse z (map return v))
-    where k = length v
-          tot = k^n
-          nzeros = (tot - k) `div` (k-1)
-          z = replicate nzeros 0
-
-takeDiagT :: Coord t => Array t -> [t]
-takeDiagT t = map (asScalar . atT t) cds where
-    n = minimum (sizes t)
-    o = order t
-    cds = map (replicate o) [0..n-1]
-
-atT :: Coord t => Array t -> [Int] -> Array t
-atT t c = atT' c t where
-    atT' cs = foldl1' (.) (map fpart cs)
-    fpart k q = parts q (head (names q)) !! k
-
--- dropRank [] = []
--- dropRank (h:xs) = h':xs' where
---     k = posMin (map abs $ takeDiagT h)
---     h' = (foldl1' (.) $ map (\n-> dropElemPos k `onIndex` n) (names h)) h
---     xs' = map f xs
---         where f x = onIndex (dropElemPos k) (head (names x)) x
---     posMin ys = p+1 where Just p = elemIndex (minimum ys) ys
-
--- | cp inicialization based on the hosvd
+-- | cp initialization based on the hosvd
 cpInitSvd :: [NArray None Double] -- ^ hosvd decomposition of the target array
           -> Int                  -- ^ rank
           -> [NArray None Double] -- ^ starting point
@@ -232,12 +161,12 @@ cpInitSeq rs t k = ones:as where
     ones = diagT (replicate k 1) (order t) `rename` auxIndx
     ts = takes (map (*k) (sizes t)) rs
     as = zipWith4 f ts auxIndx (names t) (sizes t)
-    f c n1 n2 p = ([k,p] # c) `rename` [n1,n2]
+    f c n1 n2 p = (listArray [k,p] c) `rename` [n1,n2]
 
 takes [] _ = []
 takes (n:ns) xs = take n xs : takes ns (drop n xs)
 
--- | pseudorandom cp inicialization from a given seed
+-- | pseudorandom cp initialization from a given seed
 cpInitRandom :: Int        -- ^ seed
              -> NArray i t -- ^ target array to decompose
              -> Int        -- ^ rank

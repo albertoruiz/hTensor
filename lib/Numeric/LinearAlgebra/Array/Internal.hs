@@ -24,7 +24,7 @@
 module Numeric.LinearAlgebra.Array.Internal (
     -- * Data structures
     NArray, Idx(..), Name,
-    order, names, size, typeOf , dims, coords,
+    order, names, size, sizes, typeOf , dims, coords,
     Compat(..),
     -- * Array creation
     scalar,
@@ -52,6 +52,7 @@ module Numeric.LinearAlgebra.Array.Internal (
     basisOf,
     common,
     selDims,
+    takeDiagT, atT,
     firstIdx, fibers, matrixator,
     Coord,
     asMatrix, asVector, asScalar,
@@ -94,7 +95,6 @@ data NArray i t = A { dims   :: [Idx i]   -- ^ Get detailed dimension informatio
                     , coords :: Vector t  -- ^ Get the coordinates of an array as a
                                           -- flattened structure (in the order specified by 'dims').
                     }
-
 
 -- | development function not intended for the end user
 mkNArray :: [Idx i] -> Vector a -> NArray i a
@@ -149,6 +149,9 @@ names = map iName . dims
 -- | Dimension of given index.
 size :: Name -> NArray i t -> Int
 size n t = (iDim . head) (filter ((n==).iName) (dims t))
+
+sizes:: NArray i t -> [Int]
+sizes = map iDim . dims
 
 -- | Type of given index.
 typeOf :: Compat i => Name -> NArray i t -> i
@@ -492,6 +495,10 @@ instance (Coord t, Coord (Complex t), Compat i, Container Vector t) => Container
     real = mapArray real
     complex = mapArray complex
 
+
+instance (NFData t, Element t) => NFData (NArray i t) where
+    rnf = rnf . coords
+
 ----------------------------------------------------------------------
 
 -- | obtains the common value of a property of a list
@@ -589,5 +596,14 @@ makeConformantT (t1,t2) =
                          ++ show (dims t1, dims t2)
 
 ---------------------------------------------
-instance (NFData t, Element t) => NFData (NArray i t) where
-    rnf = rnf . coords
+
+takeDiagT :: (Compat i, Coord t) => NArray i t -> [t]
+takeDiagT t = map (asScalar . atT t) cds where
+    n = minimum (sizes t)
+    o = order t
+    cds = map (replicate o) [0..n-1]
+
+atT :: (Compat i, Coord t) => NArray i t -> [Int] -> NArray i t
+atT t c = atT' c t where
+    atT' cs = foldl1' (.) (map fpart cs)
+    fpart k q = parts q (head (names q)) !! k

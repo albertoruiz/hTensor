@@ -16,7 +16,10 @@ module Numeric.LinearAlgebra.Array.Solve (
 -- * Linear systems
     solve, solveHomog, solveH,
 -- *  Multilinear systems
+-- ** General
     mlSolve, mlSolveH,
+-- ** Convenience functions
+    solveFactors, solveFactorsH,
 -- * Utilities
     eps
 ) where
@@ -25,6 +28,7 @@ import Numeric.LinearAlgebra.Array.Util
 import Numeric.LinearAlgebra.Array.Internal(mkNArray, selDims, debug)
 import Numeric.LinearAlgebra
 import Data.List
+import System.Random
 
 
 -- | Solution of the linear system a x = b, where a and b are
@@ -81,27 +85,6 @@ solveH' m ns = head $ solveHomog m ns (Right (k-1))
     where k = product $ map iDim $ selDims (dims m) ns
 
 
--- mlSolveHomog' a nx' w = xs where
---     nx = filter (`elem` (names a)) nx'
---     na = names a \\ nx
---     aM = matrixator a na nx
---     r = rows aM
---     c = cols aM
---     k = rank aM
---     nsol = c - k `max` 1
---     tc = ((r + w) `min` c) `max` (r+1)
---     m = if r < c then fromRows $ take tc $ cycle $ toRows aM
---                  else aM
---     (_,_,v) = (debug "mlSolveHomog: " (const (r,c,k,rcond aM))) svd m   -- check rank?
---     rd = if k ==c then c-1 -- overconstrained
---                   else k
---     xVs = take w $ drop rd (toColumns v)
---     dx = selDims (dims a) nx
---     xs = map (mkNArray dx) xVs
--- --     info = (r, c, rows m, cols m)
--- --     xs = debug "system: " (const info) $ map (mkNArray dx) xVs
-
-
 -----------------------------------------------------------------------
 
 optimize :: (x -> x)      -- ^ method
@@ -127,6 +110,11 @@ frobT t = pnorm PNorm2 . coords $ t
 
 dropElemPos k xs = take k xs ++ drop (k+1) xs
 replaceElemPos k v xs = take k xs ++ v : drop (k+1) xs
+
+sizes = map iDim . dims
+
+takes [] _ = []
+takes (n:ns) xs = take n xs : takes ns (drop n xs)
 
 -----------------------------------------------------------------------
 
@@ -176,3 +164,57 @@ alsArgH a k xs = sol where
     p = product (a : dropElemPos k xs)
     x = solveH' p (names (xs!!k))
     sol = replaceElemPos k x xs
+
+-------------------------------------------------------------
+
+{- | Given two arrays a (source) and  b (target), we try to compute linear transformations x,y,z,... for each dimension, such that product [a,x,y,z,...] == b.
+   We use a simple alternating least squares method.
+-}
+solveFactors :: (Coord t, Random t, Compat i, Num (NArray i t), Normed (Vector t))
+             => Int          -- ^ seed for random initialization
+             -> ([NArray i t]->[NArray i t]) -- ^ post processing of the solution after each iteration (e.g. id or eqnorm)
+             -> Double  -- ^ delta: minimum relative improvement in the optimization (percent, e.g. 0.1)
+             -> Double  -- ^ epsilon: desired relative reconstruction error (percent, e.g. 1E-3)
+             -> NArray i t -- ^ source
+             -> NArray i t -- ^ target
+             -> ([NArray i t],[Double]) -- ^ solution and error history
+solveFactors seed post delta epsilon a b =
+    mlSolve post delta epsilon a (initFactorsRandom seed a b) b
+
+initFactorsSeq rs a b = as where
+    ir = names b
+    it = names a
+    nr = sizes b
+    nt = sizes a
+    ts = takes (zipWith (*) nr nt) rs
+    as = zipWith5 f ts ir it (selDims (dims a) ir) (selDims (dims a) it)
+    f c i1 i2 d1 d2 = (mkNArray (map opos [d1,d2]) (fromList c)) `rename` [i1,i2]
+
+initFactorsRandom seed a b = initFactorsSeq (randomRs (-1,1) (mkStdGen seed)) a b
+
+
+-- | Homogeneous factorized system. Given an array a and a list of pairs of indices
+-- [\"pi\",\"qj\", \"rk\", etc.], we try to compute linear transformations
+-- x!\"pi\", y!\"pi\", z!\"rk\", etc. such that product [a,x,y,z,...] == 0.
+-- We use a simple alternating least squares method.
+solveFactorsH
+  :: (Coord t, Random t, Compat i, Num (NArray i t), Normed (Vector t))
+     => Int -- ^ seed for random initialization
+     -> ([NArray i t] -> [NArray i t]) -- ^ post processing of the solution after each iteration (e.g. id)
+     -> Double -- ^ delta: minimum relative improvement in the optimization (percent, e.g. 0.1)
+     -> Double -- ^ epsilon: frob norm of the right hand side
+     -> NArray i t -- ^ coefficients (a)
+     -> [[Char]] -- ^ list of index pairs for the factors
+     -> ([NArray i t], [Double]) -- ^ solution and error history
+solveFactorsH seed post delta epsilon a pairs =
+    mlSolveH post delta epsilon a (initFactorsHRandom seed a pairs)
+
+initFactorsHSeq rs a pairs = as where
+    [ir,it] = map (map return) (transpose pairs)
+    nr = map (flip size a) ir
+    nt = map (flip size a) it
+    ts = takes (zipWith (*) nr nt) rs
+    as = zipWith5 f ts ir it (selDims (dims a) ir) (selDims (dims a) it)
+    f c i1 i2 d1 d2 = (mkNArray (map opos [d1,d2]) (fromList c)) `rename` [i1,i2]
+
+initFactorsHRandom seed a pairs = initFactorsHSeq (randomRs (-1,1) (mkStdGen seed)) a pairs

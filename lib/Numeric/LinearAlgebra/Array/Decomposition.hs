@@ -17,21 +17,20 @@ module Numeric.LinearAlgebra.Array.Decomposition (
     hosvd, truncateFactors,
     -- * CP
     cpAuto, cpRun, cpInitRandom, cpInitSvd,
-    -- * Multilinear solve
-    solveFactors, solveFactorsH,
     -- * Utilities
     diagT, takeDiagT, eqnorm
 ) where
 
+import Numeric.LinearAlgebra.Array.Internal
 import Numeric.LinearAlgebra.Array
-import Numeric.LinearAlgebra.Array.Internal(mkNArray, selDims)
 import Numeric.LinearAlgebra.Array.Util
 import Numeric.LinearAlgebra.Array.Solve
 import Numeric.LinearAlgebra hiding ((.*))
 import Numeric.LinearAlgebra.LAPACK
 import Data.List
-import Control.Parallel.Strategies
 import System.Random
+import Control.Parallel.Strategies
+
 
 
 {- | Multilinear Singular Value Decomposition (or Tucker's method, see Lathauwer et al.).
@@ -39,9 +38,10 @@ import System.Random
     The first element in the result pair is a list with the core (head) and rotations so that
     t == product (fst (hsvd t)).
 
-    The second element is a list of singular values along each mode, to give some idea about core structure.
+    The second element is a list of singular values along each mode,
+    to give some idea about core structure.
 
-    Rotations are (hopefully) computed in parallel.
+    Rotations are computed in parallel.
 -}
 hosvd :: Array Double -> ([Array Double],[Vector Double])
 hosvd t = (factors,ss)
@@ -104,6 +104,17 @@ convergence epsrel epsabs ((s1,e1):(s2,e2):ses) prev
 
 sizes = map iDim . dims
 
+
+unitRows (c:as) = foldl1' (.*) (c:xs) : as' where
+    (xs,as') = unzip (map g as)
+    g a = (x,a')
+        where n = head (names a) -- hmmm
+              rs = parts a n
+              scs = map frobT rs
+              x = diagT scs (order c) `rename` (names c)
+              a' = (zipWith (.*) (map (scalar.recip) scs)) `onIndex` n $ a
+
+
 {- | Basic CP optimization for a given rank. The result includes the obtained sequence of errors.
 
 For example, a rank 3 approximation can be obtained as follows, where initialization
@@ -119,7 +130,12 @@ cpRun :: [Array Double] -- ^ starting point
       -> Double -- ^ epsilon: desired relative reconstruction error (percent, e.g. 0.1)
       -> Array Double -- ^ input array
       -> ([Array Double], [Double]) -- ^ factors and error history
-cpRun s0 delta epsilon t = (sol,e) where
+cpRun s0 delta epsilon t = (unitRows $ head s0 : sol, errs) where
+    (sol,errs) = mlSolve id delta epsilon (head s0) (tail s0) t
+
+
+
+cpRun' s0 delta epsilon t = (sol,e) where
     sols = iterate (cpStep t) s0
     errs = map (\s -> 100 * frobT (t - product s) / frobT t) sols
     (sol,e) = convergence delta epsilon (zip sols errs) []
@@ -229,93 +245,6 @@ cpInitRandom :: Int        -- ^ seed
 cpInitRandom seed = cpInitSeq (randomRs (-1,1) (mkStdGen seed))
 
 ----------------------------------------------------------------------
-
-{- | (In construction)
-
-Given two arrays a (source) and  b (target), we try to compute linear transformations x,y,z,... for each dimension, such that product [a,x,y,z,...] == b.
-   We use a simple alternating least squares method.
--}
-solveFactors :: (Coord t, Random t, Compat i, Num (NArray i t), Normed (Vector t))
-             => Int          -- ^ seed for random initialization
-             -> ([NArray i t]->[NArray i t]) -- ^ post processing of the solution after each iteration (e.g. id or eqnorm)
-             -> Double  -- ^ delta: minimum relative improvement in the optimization (percent, e.g. 0.1)
-             -> Double  -- ^ epsilon: desired relative reconstruction error (percent, e.g. 1E-3)
-             -> NArray i t -- ^ source
-             -> NArray i t -- ^ target
-             -> ([NArray i t],[Double]) -- ^ solution and error history
-solveFactors seed post delta epsilon a b =
-    mlSolve post delta epsilon a (initFactorsRandom seed a b) b
-
--- multilinearSolve = als'
-
--- als'' delta epsilon r t = alsRun (t:ids)  delta epsilon r  where
---     ids = zipWith3 f (sizes t) (names r) (names t)
---     f d n1 n2 = fromMatrix None None (ident d) `rename` [n1,n2]
-
--- als' post delta epsilon r t = alsRun post (alsInitRandom 170 r t) delta epsilon r
-
-initFactorsSeq rs a b = as where
-    ir = names b
-    it = names a
-    nr = sizes b
-    nt = sizes a
-    ts = takes (zipWith (*) nr nt) rs
-    as = zipWith5 f ts ir it (selDims (dims a) ir) (selDims (dims a) it)
-    f c i1 i2 d1 d2 = (mkNArray (map opos [d1,d2]) (fromList c)) `rename` [i1,i2]
-
-initFactorsRandom seed a b = initFactorsSeq (randomRs (-1,1) (mkStdGen seed)) a b
-
-
--- | Homogeneous factorized system. Given an array a and a list of pairs of indices [\"pi\",\"qj\", \"rk\", etc.], we try to compute linear transformations x!\"pi\", y!\"pi\", z!\"rk\", etc ... such that product [a,x,y,z,...] == 0. We use a simple alternating least squares method.
-solveFactorsH
-  :: (Coord t, Random t, Compat i, Num (NArray i t), Normed (Vector t))
-     => Int -- ^ seed for random initialization
-     -> ([NArray i t] -> [NArray i t]) -- ^ post processing of the solution after each iteration (e.g. id)
-     -> Double -- ^ delta: minimum relative improvement in the optimization (percent, e.g. 0.1)
-     -> Double -- ^ epsilon: frob norm of the right hand side
-     -> NArray i t -- ^ coefficients (a)
-     -> [[Char]] -- ^ list of index pairs for the factors
-     -> ([NArray i t], [Double]) -- ^ solution and error history
-solveFactorsH seed post delta epsilon a pairs =
-    mlSolveH post delta epsilon a (initFactorsHRandom seed a pairs)
-
-
-
-initFactorsHSeq rs a pairs = as where
-    [ir,it] = map (map return) (transpose pairs)
-    nr = map (flip size a) ir
-    nt = map (flip size a) it
-    ts = takes (zipWith (*) nr nt) rs
-    as = zipWith5 f ts ir it (selDims (dims a) ir) (selDims (dims a) it)
-    f c i1 i2 d1 d2 = (mkNArray (map opos [d1,d2]) (fromList c)) `rename` [i1,i2]
-
-initFactorsHRandom seed a pairs = initFactorsHSeq (randomRs (-1,1) (mkStdGen seed)) a pairs
-
--- alsRun post s0 delta epsilon t = (sol,e) where
---     sols = iterate (post . alsStep t) s0
---     errs = map (\s -> 100 * frobT (t - product s) / frobT t) sols
---     (sol,e) = convergence delta epsilon (zip sols errs) []
--- 
--- alsStep t = foldl1' (.) (map (alsArg t) [1..order t])
--- 
--- sv m = let (_,s,_) = svd m in s
--- 
--- 
--- alsArg _ _ [] = error "alsArg _ _ []"
--- alsArg t k (d:as) = {-debug' "dec = "  (const (names prod,names prod',names ta,e1,e2,e3))-} sol where
---     [n1,n2] = names (as!!(k-1))
---     prod = product $ d : dropElemPos k as
---     prod' = rename prod $ replaceElem n2 n1 (names prod)
---     ta = reorder (names t) prod'
---     fa = {-debug' "aOK: " id $-} trans $ fibers n1 ta
---     ft = {-debug' "bOK: " id $-} trans $ fibers n1 t
---     a = trans $ linearSolveSVD (debug' "info = " (const info) fa) ft
---     ar = fromMatrix None None a `rename` ({-debug' "namesOK: " id-} [n1,n2])
---     sol = d: replaceElemPos k ar as
---     info = ((rows fa, cols fa, cols ft), rank fa, rcond fa, sv fa)
--- --     e1 = frobT $ product (d:as) - t
--- --     e2 = frobT $ product sol - t
--- --     e3 = pnorm PNorm2 (fa<>trans a - ft)
 
 eqnorm [] = error "eqnorm []"
 eqnorm as = as' where

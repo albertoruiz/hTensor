@@ -37,7 +37,7 @@ module Numeric.LinearAlgebra.Array.Util (
     basisOf,
     atT, takeDiagT, diagT,
     asScalar, asVector, asMatrix,
-    fibers, matrixator,
+    fibers, matrixator, analyzeProduct,
     fromVector, fromMatrix,
     Container(..),
 ) where

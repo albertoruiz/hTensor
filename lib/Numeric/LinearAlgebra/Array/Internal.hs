@@ -34,6 +34,7 @@ module Numeric.LinearAlgebra.Array.Internal (
     rename,(!),
     parts,
     (|*|),
+    analyzeProduct,
     zipArray,
     mapArray,
     extract,
@@ -61,7 +62,7 @@ module Numeric.LinearAlgebra.Array.Internal (
 
 import Data.Packed
 import Data.List
-import Numeric.LinearAlgebra(outer,multiply,Field)
+import Numeric.LinearAlgebra((<>),Field)
 import Control.Applicative
 import Data.Function(on)
 import Text.Printf
@@ -74,10 +75,6 @@ debug m f x = trace (m ++ show (f x)) x
 class (Num (Vector t), Field t) => Coord t
 instance Coord Double
 instance Coord (Complex Double)
-
--- import Debug.Trace
--- 
--- debug s f x = trace (s ++ ": " ++ show (f x)) x
 
 -- | indices are denoted by strings, (frequently single-letter)
 type Name = String
@@ -167,6 +164,37 @@ selDims ds = map f where
 
 ----------------------------------------------------------
 
+common2 t1 t2 = [ n1 | n1 <- names t1, n2 <- names t2, n1==n2]
+
+
+analyzeProduct a b = r where
+    nx  = common2 a b
+    na  = names a \\ nx
+    nb  = names b \\ nx
+    dx1 = selDims (dims a) nx
+    dx2 = selDims (dims b) nx
+    ok  = and $ zipWith compat dx1 dx2
+    da  = selDims (dims a) na
+    db  = selDims (dims b) nb
+    ma  = matrixator a na nx
+    mb  = matrixator b nx nb
+    mc  = ma <> mb
+    dc  = da ++ db
+    c   = A dc (flatten mc)
+    sz  = product (map iDim dc)
+    r | ok = Just (c, sz)
+      | otherwise = Nothing
+
+
+infixl 5 |*|
+-- | Tensor product with automatic contraction of repeated indices, following Einstein summation convention.
+(|*|) :: (Coord t, Compat i) => NArray i t -> NArray i t -> NArray i t
+t1 |*| t2 = case analyzeProduct t1 t2 of
+    Nothing -> error $ "wrong contraction2: "++(show $ dims t1)++" and "++(show $ dims t2)
+    Just (r,_) -> r
+
+----------------------------------------------------------
+
 lastIdx name t = ((d1,d2),m) where
     (d1,d2) = span (\d -> iName d /= name) (dims t)
     c = product (map iDim d2)
@@ -229,10 +257,6 @@ infixl 8 ~>
 (~>) :: (Coord t) => NArray i t -> String -> NArray i t
 t ~> ns = reorder (map return ns) t
 
--------------------------------------------------------------
-
-rawProduct (A d1 v1) (A d2 v2) = A (d1++d2) (flatten (outer v1 v2))
-
 ----------------------------------------------------------------------
 
 -- | Apply a function (defined on hmatrix 'Vector's) to all elements of a structure.
@@ -275,29 +299,6 @@ common1 t = [ n1 | (a,n1) <- x , (b,n2) <- x, a>b, n1==n2]
     where x = zip [0 ::Int ..] (names t)
 
 contract t = foldl' contract1c t (common1 t)
-
-----------------------------------------------------------------------
-
-contract2 t1 t2 n | ok = A (tail ds1 ++ tail ds2) (flatten m)
-                  | otherwise = error $ "wrong contraction2: "++ n ++ " of "++
-                                      (show $ dims t1)++" and "++ (show $ dims t2)
-  where ok = (compat <$> getName t1 n <*> getName t2 n) == Just True
-        (ds1,m1) = firstIdx n t1
-        (ds2,m2) = firstIdx n t2
-        m = (trans m1) `multiply` m2
-
-common2 t1 t2 = [ n1 | n1 <- names t1, n2 <- names t2, n1==n2]
-
-infixl 5 |*|
--- | Tensor product with automatic contraction of repeated indices, following Einstein summation convention.
-(|*|) :: (Coord t, Compat i)
-      => NArray i t -> NArray i t -> NArray i t
-t1 |*| t2 = r where
-    cs = common2 t1 t2
-    r = case cs of
-        [] -> rawProduct t1 t2
-        n:_ -> reorder orig $ contract (contract2 t1 t2 n)
-    orig = nub (names t1 ++ names t2) \\ cs
 
 -------------------------------------------------------------
 

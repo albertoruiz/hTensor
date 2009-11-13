@@ -24,7 +24,7 @@ module Numeric.LinearAlgebra.Array.Util (
     parts,
     newIndex,
 
-    mapArray, zipArray, (|*|),
+    mapArray, zipArray, (|*|), smartProduct,
 
     extract, onIndex,
 

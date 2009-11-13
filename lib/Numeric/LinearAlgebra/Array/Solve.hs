@@ -18,10 +18,10 @@ module Numeric.LinearAlgebra.Array.Solve (
 -- *  Multilinear systems
 -- ** General
     mlSolve, mlSolveH,
--- ** Convenience functions
+-- ** Convenience functions for order-2 unknowns
     solveFactors, solveFactorsH,
 -- * Utilities
-    eps
+    eps, eqnorm
 ) where
 
 import Numeric.LinearAlgebra.Array.Util
@@ -104,7 +104,7 @@ optimize method errfun s0 delta epsilon = (sol,e) where
         | abs (100*(e1 - e2)/e1) < delta = (s2, e2:prev)
         | otherwise = convergence ((s2,e2):ses) (e1:prev)
 
-percent t s = 100 * frobT (t - product s) / frobT t
+percent t s = 100 * frobT (t - smartProduct s) / frobT t
 
 frobT t = pnorm PNorm2 . coords $ t
 
@@ -122,20 +122,20 @@ mlSolve
      ([NArray i t] -> [NArray i t])  -- ^ post-processing function after each iteration (e.g. id)
      -> Double        -- ^ delta: minimum relative improvement in the optimization (percent, e.g. 0.1)
      -> Double        -- ^ epsilon: desired relative reconstruction error (percent, e.g. 1E-3)
-     -> NArray i t    -- ^ coefficients (a)
+     -> [NArray i t]  -- ^ coefficients (a), given as a list of factors.
      -> [NArray i t]  -- ^ initial solution [x,y,z...]
      -> NArray i t    -- ^ target (b)
      -> ([NArray i t], [Double]) -- ^ Solution and error history
 mlSolve = als
 
 als post delta epsilon a x0 b
-    = optimize (post.alsStep a b) (percent b . (a:)) x0 delta epsilon
+    = optimize (post.alsStep a b) (percent b . (a++)) x0 delta epsilon
 
 alsStep a b x = (foldl1' (.) (map (alsArg a b) [0.. length x-1])) x
 
 alsArg _ _ _ [] = error "alsArg _ _ []"
 alsArg a b k xs = sol where
-    p = product (a : dropElemPos k xs)
+    p = smartProduct (a ++ dropElemPos k xs)
     x = solve p b
     sol = replaceElemPos k x xs
 
@@ -147,37 +147,37 @@ mlSolveH
      ([NArray i t] -> [NArray i t])  -- ^ post-processing function after each iteration (e.g. id)
      -> Double        -- ^ delta: minimum relative improvement in the optimization (percent, e.g. 0.1)
      -> Double        -- ^ epsilon: frob norm of the right hand side
-     -> NArray i t    -- ^ coefficients (a)
+     -> [NArray i t]  -- ^ coefficients (a), given as a list of factors.
      -> [NArray i t]  -- ^ initial solution [x,y,z...]
      -> ([NArray i t], [Double]) -- ^ Solution and error history
 mlSolveH = alsH
 
 alsH post delta epsilon a x0
-    = optimize (post.alsStepH a) (frobT . product . (a:)) x0 delta epsilon
+--    = optimize (post.alsStepH a) (frobT . smartProduct . (a++)) x0 delta epsilon
+    = optimize (post.alsStepH a) (frobT . smartProduct . (a++)) x0 delta epsilon
 
 alsStepH a x = (foldl1' (.) (map (alsArgH a) [0.. length x-1])) x
 
 alsArgH _ _ [] = error "alsArg _ _ []"
 alsArgH a k xs = sol where
-    p = product (a : dropElemPos k xs)
+    p = smartProduct (a ++ dropElemPos k xs)
     x = solveH' p (names (xs!!k))
     sol = replaceElemPos k x xs
 
 -------------------------------------------------------------
 
 {- | Given two arrays a (source) and  b (target), we try to compute linear transformations x,y,z,... for each dimension, such that product [a,x,y,z,...] == b.
-   We use a simple alternating least squares method.
 -}
 solveFactors :: (Coord t, Random t, Compat i, Num (NArray i t), Normed (Vector t))
              => Int          -- ^ seed for random initialization
              -> ([NArray i t]->[NArray i t]) -- ^ post processing of the solution after each iteration (e.g. id or eqnorm)
              -> Double  -- ^ delta: minimum relative improvement in the optimization (percent, e.g. 0.1)
              -> Double  -- ^ epsilon: desired relative reconstruction error (percent, e.g. 1E-3)
-             -> NArray i t -- ^ source
+             -> [NArray i t] -- ^ source (also factorized)
              -> NArray i t -- ^ target
              -> ([NArray i t],[Double]) -- ^ solution and error history
 solveFactors seed post delta epsilon a b =
-    mlSolve post delta epsilon a (initFactorsRandom seed a b) b
+    mlSolve post delta epsilon a (initFactorsRandom seed (smartProduct a) b) b
 
 initFactorsSeq rs a b = as where
     ir = names b
@@ -191,21 +191,21 @@ initFactorsSeq rs a b = as where
 initFactorsRandom seed a b = initFactorsSeq (randomRs (-1,1) (mkStdGen seed)) a b
 
 
--- | Homogeneous factorized system. Given an array a and a list of pairs of indices
+-- | Homogeneous factorized system. Given an array a,
+-- given as a list of factors as, and a list of pairs of indices
 -- [\"pi\",\"qj\", \"rk\", etc.], we try to compute linear transformations
 -- x!\"pi\", y!\"pi\", z!\"rk\", etc. such that product [a,x,y,z,...] == 0.
--- We use a simple alternating least squares method.
 solveFactorsH
   :: (Coord t, Random t, Compat i, Num (NArray i t), Normed (Vector t))
      => Int -- ^ seed for random initialization
      -> ([NArray i t] -> [NArray i t]) -- ^ post processing of the solution after each iteration (e.g. id)
      -> Double -- ^ delta: minimum relative improvement in the optimization (percent, e.g. 0.1)
      -> Double -- ^ epsilon: frob norm of the right hand side
-     -> NArray i t -- ^ coefficients (a)
+     -> [NArray i t] -- ^ coefficient array (a), (also factorized)
      -> [[Char]] -- ^ list of index pairs for the factors
      -> ([NArray i t], [Double]) -- ^ solution and error history
 solveFactorsH seed post delta epsilon a pairs =
-    mlSolveH post delta epsilon a (initFactorsHRandom seed a pairs)
+    mlSolveH post delta epsilon a (initFactorsHRandom seed (smartProduct a) pairs)
 
 initFactorsHSeq rs a pairs = as where
     [ir,it] = map (map return) (transpose pairs)
@@ -216,3 +216,17 @@ initFactorsHSeq rs a pairs = as where
     f c i1 i2 d1 d2 = (mkNArray (map opos [d1,d2]) (fromList c)) `rename` [i1,i2]
 
 initFactorsHRandom seed a pairs = initFactorsHSeq (randomRs (-1,1) (mkStdGen seed)) a pairs
+
+----------------------------------
+
+-- | post processing function that modifies a list of tensors so that they
+-- have equal frobenius norm
+eqnorm :: (Coord t, Coord (Complex t), Compat i, Num (NArray i t), Normed (Vector t) )
+       => [NArray i t] -> [NArray i t]
+
+eqnorm [] = error "eqnorm []"
+eqnorm as = as' where
+    n = length as
+    fs = map (frobT) as
+    s = product fs ** (1/fromIntegral n)
+    as' = zipWith g as fs where g a f = a * real (scalar (s/f))

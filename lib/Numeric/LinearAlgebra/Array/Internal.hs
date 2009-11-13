@@ -35,6 +35,7 @@ module Numeric.LinearAlgebra.Array.Internal (
     parts,
     (|*|),
     analyzeProduct,
+    smartProduct,
     zipArray,
     mapArray,
     extract,
@@ -166,7 +167,7 @@ selDims ds = map f where
 
 common2 t1 t2 = [ n1 | n1 <- names t1, n2 <- names t2, n1==n2]
 
-
+analyzeProduct :: (Coord t, Compat i) => NArray i t -> NArray i t -> Maybe (NArray i t, Int)
 analyzeProduct a b = r where
     nx  = common2 a b
     na  = names a \\ nx
@@ -608,3 +609,30 @@ atT :: (Compat i, Coord t) => NArray i t -> [Int] -> NArray i t
 atT t c = atT' c t where
     atT' cs = foldl1' (.) (map fpart cs)
     fpart k q = parts q (head (names q)) !! k
+
+----------------------------------------------
+
+-- not very smart...
+
+-- | This is equivalent to the regular 'product', but in the order that minimizes the size of the
+-- intermediate factors.
+smartProduct :: (Coord t, Compat i, Num (NArray i t)) => [NArray i t] -> NArray i t
+smartProduct ts = reorder ns r where
+    r = smartProduct' ts
+    ns = filter (`elem` names r) (concatMap names ts)
+
+smartProduct' [] = 1
+smartProduct' [a] = a
+smartProduct' [a,b] = a*b
+smartProduct' ts = r where
+    n = length ts
+    ks = [0 .. n-1]
+    xs = zip ks ts
+    g a b = case analyzeProduct a b of
+              Nothing -> error $ "inconsistent dimensions in smartProduct: "++(show $ dims a)++" and "++(show $ dims b)
+              Just (_,c) -> c
+    pairs = [ ((i,j), g a b) | (i,a) <- init xs, (j,b) <- drop (i+1) xs ]
+    (p,q) = fst $ minimumBy (compare `on` snd) pairs
+    r = smartProduct' (ts!!p * ts!!q : (dropElemPos p . dropElemPos q) ts)
+
+dropElemPos k xs = take k xs ++ drop (k+1) xs

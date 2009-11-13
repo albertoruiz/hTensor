@@ -16,9 +16,9 @@ module Numeric.LinearAlgebra.Array.Decomposition (
     -- * HOSVD
     hosvd, truncateFactors,
     -- * CP
-    cpAuto, cpRun, cpInitRandom, cpInitSvd,
-    -- * Utilities
-    eqnorm
+    cpAuto, cpRun, cpInitRandom, cpInitSvd
+--    -- * Utilities
+
 ) where
 
 import Numeric.LinearAlgebra.Array
@@ -106,7 +106,7 @@ cpRun :: [Array Double] -- ^ starting point
       -> Array Double -- ^ input array
       -> ([Array Double], [Double]) -- ^ factors and error history
 cpRun s0 delta epsilon t = (unitRows $ head s0 : sol, errs) where
-    (sol,errs) = mlSolve id delta epsilon (head s0) (tail s0) t
+    (sol,errs) = mlSolve id delta epsilon [head s0] (tail s0) t
 
 
 
@@ -174,10 +174,3 @@ cpInitRandom :: Int        -- ^ seed
 cpInitRandom seed = cpInitSeq (randomRs (-1,1) (mkStdGen seed))
 
 ----------------------------------------------------------------------
-
-eqnorm [] = error "eqnorm []"
-eqnorm as = as' where
-    n = length as
-    fs = map frobT as
-    s = product fs ** (1/fromIntegral n)
-    as' = zipWith g as fs where g a f = a * scalar (s/f)

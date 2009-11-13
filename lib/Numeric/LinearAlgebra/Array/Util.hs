@@ -43,6 +43,7 @@ module Numeric.LinearAlgebra.Array.Util (
 ) where
 
 import Numeric.LinearAlgebra.Array.Internal
+import Numeric.LinearAlgebra.Array.Display
 import Data.Packed(Container(..))
 import Numeric.LinearAlgebra.Array.Simple
 import Data.List(intersperse)

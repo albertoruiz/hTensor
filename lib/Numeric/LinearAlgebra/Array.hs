@@ -28,7 +28,7 @@ module Numeric.LinearAlgebra.Array (
 
 import Numeric.LinearAlgebra.Array.Simple
 import Numeric.LinearAlgebra.Array.Util
-import Numeric.LinearAlgebra.Array.Internal(printA)
+import Numeric.LinearAlgebra.Array.Display(printA)
 import Data.Packed(Vector)
 
 -- | Create an 'Array' from a list of parts (@index = 'newIndex' 'None'@).

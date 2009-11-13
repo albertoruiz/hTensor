@@ -57,6 +57,7 @@ library
                         Numeric.LinearAlgebra.Array.Decomposition
 
     other-modules:      Numeric.LinearAlgebra.Array.Internal
+                        Numeric.LinearAlgebra.Array.Display
                         Numeric.LinearAlgebra.Array.Simple
 
     ghc-prof-options:   -auto-all

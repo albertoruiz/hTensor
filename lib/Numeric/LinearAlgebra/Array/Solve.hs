@@ -185,8 +185,8 @@ initFactorsSeq rs a b = as where
     nr = sizes b
     nt = sizes a
     ts = takes (zipWith (*) nr nt) rs
-    as = zipWith5 f ts ir it (selDims (dims a) ir) (selDims (dims a) it)
-    f c i1 i2 d1 d2 = (mkNArray (map opos [d1,d2]) (fromList c)) `rename` [i1,i2]
+    as = zipWith5 f ts ir it (selDims (dims b) ir) (selDims (dims a) it)
+    f c i1 i2 d1 d2 = (mkNArray [d1,opos d2] (fromList c)) `rename` [i1,i2]
 
 initFactorsRandom seed a b = initFactorsSeq (randomRs (-1,1) (mkStdGen seed)) a b
 

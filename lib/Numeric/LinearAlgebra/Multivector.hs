@@ -26,6 +26,7 @@ module Numeric.LinearAlgebra.Multivector (
 
 import Numeric.LinearAlgebra(toList,reshape,(<\>),(@>))
 import Numeric.LinearAlgebra.Array.Internal hiding (scalar,coords)
+import Numeric.LinearAlgebra.Array.Display (showBases)
 import Numeric.LinearAlgebra.Tensor hiding (scalar,vector)
 import qualified Numeric.LinearAlgebra.Array.Internal as Array
 import Data.List

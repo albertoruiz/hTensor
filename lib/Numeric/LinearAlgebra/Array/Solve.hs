@@ -180,12 +180,15 @@ solveFactors seed post delta epsilon a b =
     mlSolve post delta epsilon a (initFactorsRandom seed (smartProduct a) b) b
 
 initFactorsSeq rs a b = as where
-    ir = names b
-    it = names a
-    nr = sizes b
-    nt = sizes a
-    ts = takes (zipWith (*) nr nt) rs
-    as = zipWith5 f ts ir it (selDims (dims b) ir) (selDims (dims a) it)
+    ic = intersect (names a) (names b)
+    ib = names b \\ ic
+    ia = names a \\ ic
+    db = selDims (dims b) ib
+    da = selDims (dims a) ia
+    nb = map iDim db
+    na = map iDim da
+    ts = takes (zipWith (*) nb na) rs
+    as = zipWith5 f ts ib ia db da
     f c i1 i2 d1 d2 = (mkNArray [d1,opos d2] (fromList c)) `rename` [i1,i2]
 
 initFactorsRandom seed a b = initFactorsSeq (randomRs (-1,1) (mkStdGen seed)) a b

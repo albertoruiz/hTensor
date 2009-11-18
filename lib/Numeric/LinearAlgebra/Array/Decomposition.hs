@@ -16,9 +16,9 @@ module Numeric.LinearAlgebra.Array.Decomposition (
     -- * HOSVD
     hosvd, truncateFactors,
     -- * CP
-    cpAuto, cpRun, cpInitRandom, cpInitSvd
---    -- * Utilities
-
+    cpAuto, cpRun, cpInitRandom, cpInitSvd,
+    -- * Utilities
+    ALSParam(..), defaultParameters
 ) where
 
 import Numeric.LinearAlgebra.Array
@@ -101,12 +101,11 @@ is based on the hosvd:
 
 -}
 cpRun :: [Array Double] -- ^ starting point
-      -> Double -- ^ delta: minimum relative improvement in the optimization (percent, e.g. 0.1)
-      -> Double -- ^ epsilon: desired relative reconstruction error (percent, e.g. 0.1)
+      -> ALSParam      -- ^ optimization parameters
       -> Array Double -- ^ input array
       -> ([Array Double], [Double]) -- ^ factors and error history
-cpRun s0 delta epsilon t = (unitRows $ head s0 : sol, errs) where
-    (sol,errs) = mlSolve id delta epsilon [head s0] (tail s0) t
+cpRun s0 params t = (unitRows $ head s0 : sol, errs) where
+    (sol,errs) = mlSolve id params [head s0] (tail s0) t
 
 
 
@@ -136,12 +135,11 @@ z = cpR seed 0.1 0.1 t
 
 -}
 cpAuto :: (Int -> [Array Double]) -- ^ Initialization function for each rank
-       -> Double -- ^ delta: minimum relative improvement in the optimization (percent, e.g. 0.1)
-       -> Double -- ^ epsilon: desired relative reconstruction error (percent, e.g. 0.1)
+       -> ALSParam      -- ^ optimization parameters
        -> Array Double -- ^ input array
        -> [Array Double] -- ^ factors
-cpAuto finit delta epsilon t = fst . head . filter ((<epsilon). head . snd)
-                             . map (\r->cpRun (finit r) delta epsilon t) $ [1 ..]
+cpAuto finit params t = fst . head . filter ((<epsilon params). head . snd)
+                      . map (\r->cpRun (finit r) params t) $ [1 ..]
 
 ----------------------
 

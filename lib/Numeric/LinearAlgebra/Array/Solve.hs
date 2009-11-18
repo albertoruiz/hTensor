@@ -17,6 +17,7 @@ module Numeric.LinearAlgebra.Array.Solve (
     solve, solveHomog, solveH,
 -- *  Multilinear systems
 -- ** General
+    ALSParam(..), defaultParameters,
     mlSolve, mlSolveH,
 -- ** Convenience functions for order-2 unknowns
     solveFactors, solveFactorsH,
@@ -87,21 +88,31 @@ solveH' m ns = head $ solveHomog m ns (Right (k-1))
 
 -----------------------------------------------------------------------
 
+-- | optimization parameters for alternating least squares
+data ALSParam = ALSParam
+    { nMax  ::   Int     -- ^ maximum number of iterations
+    , delta ::   Double  -- ^ minimum relative improvement in the optimization (percent, e.g. 0.1)
+    , epsilon :: Double  -- ^ epsilon: maximum relative error 
+                         --   for nonhomegenous problems this is a reconstruction error in percent (e.g.
+                         --   1E-3), and for homogeneous problems this is the frob norm of the
+                         --  expected zero structure in th right hand side.
+    }
+
+
 optimize :: (x -> x)      -- ^ method
          -> (x -> Double) -- ^ error function
          -> x             -- ^ starting point
-         -> Double        -- ^ delta: minimum relative improvement in the optimization (percent, e.g. 0.1)
-         -> Double -- ^ epsilon: desired error
+         -> ALSParam      -- ^ optimization parameters
          -> (x, [Double]) -- ^ solution and error history
-optimize method errfun s0 delta epsilon = (sol,e) where
-    sols = iterate method s0
+optimize method errfun s0 p = (sol,e) where
+    sols = take (max 1 (nMax p)) $ iterate method s0
     errs = map errfun sols
     (sol,e) = convergence (zip sols errs) []
-    convergence [] _  = error "impossible"  -- to avoid warning
-    convergence [_] _ = error "impossible"
+    convergence [] _  = error "impossible"
+    convergence [(s,e)] prev = (s, e:prev)
     convergence ((s1,e1):(s2,e2):ses) prev
-        | e1 < epsilon = (s1, e1:prev)
-        | abs (100*(e1 - e2)/e1) < delta = (s2, e2:prev)
+        | e1 < epsilon p = (s1, e1:prev)
+        | abs (100*(e1 - e2)/e1) < delta p = (s2, e2:prev)
         | otherwise = convergence ((s2,e2):ses) (e1:prev)
 
 percent t s = 100 * frobT (t - smartProduct s) / frobT t
@@ -120,16 +131,15 @@ takes (n:ns) xs = take n xs : takes ns (drop n xs)
 mlSolve
   :: (Compat i, Coord t, Num (NArray i t), Normed (Vector t)) =>
      ([NArray i t] -> [NArray i t])  -- ^ post-processing function after each iteration (e.g. id)
-     -> Double        -- ^ delta: minimum relative improvement in the optimization (percent, e.g. 0.1)
-     -> Double        -- ^ epsilon: desired relative reconstruction error (percent, e.g. 1E-3)
+     -> ALSParam      -- ^ optimization parameters
      -> [NArray i t]  -- ^ coefficients (a), given as a list of factors.
      -> [NArray i t]  -- ^ initial solution [x,y,z...]
      -> NArray i t    -- ^ target (b)
      -> ([NArray i t], [Double]) -- ^ Solution and error history
 mlSolve = als
 
-als post delta epsilon a x0 b
-    = optimize (post.alsStep a b) (percent b . (a++)) x0 delta epsilon
+als post params a x0 b
+    = optimize (post.alsStep a b) (percent b . (a++)) x0 params
 
 alsStep a b x = (foldl1' (.) (map (alsArg a b) [0.. length x-1])) x
 
@@ -145,16 +155,14 @@ alsArg a b k xs = sol where
 mlSolveH
   :: (Compat i, Coord t, Num (NArray i t), Normed (Vector t)) =>
      ([NArray i t] -> [NArray i t])  -- ^ post-processing function after each iteration (e.g. id)
-     -> Double        -- ^ delta: minimum relative improvement in the optimization (percent, e.g. 0.1)
-     -> Double        -- ^ epsilon: frob norm of the right hand side
+     -> ALSParam      -- ^ optimization parameters
      -> [NArray i t]  -- ^ coefficients (a), given as a list of factors.
      -> [NArray i t]  -- ^ initial solution [x,y,z...]
      -> ([NArray i t], [Double]) -- ^ Solution and error history
 mlSolveH = alsH
 
-alsH post delta epsilon a x0
---    = optimize (post.alsStepH a) (frobT . smartProduct . (a++)) x0 delta epsilon
-    = optimize (post.alsStepH a) (frobT . smartProduct . (a++)) x0 delta epsilon
+alsH post params a x0
+    = optimize (post.alsStepH a) (frobT . smartProduct . (a++)) x0 params
 
 alsStepH a x = (foldl1' (.) (map (alsArgH a) [0.. length x-1])) x
 
@@ -171,13 +179,12 @@ alsArgH a k xs = sol where
 solveFactors :: (Coord t, Random t, Compat i, Num (NArray i t), Normed (Vector t))
              => Int          -- ^ seed for random initialization
              -> ([NArray i t]->[NArray i t]) -- ^ post processing of the solution after each iteration (e.g. id or eqnorm)
-             -> Double  -- ^ delta: minimum relative improvement in the optimization (percent, e.g. 0.1)
-             -> Double  -- ^ epsilon: desired relative reconstruction error (percent, e.g. 1E-3)
+             -> ALSParam      -- ^ optimization parameters
              -> [NArray i t] -- ^ source (also factorized)
              -> NArray i t -- ^ target
              -> ([NArray i t],[Double]) -- ^ solution and error history
-solveFactors seed post delta epsilon a b =
-    mlSolve post delta epsilon a (initFactorsRandom seed (smartProduct a) b) b
+solveFactors seed post params a b =
+    mlSolve post params a (initFactorsRandom seed (smartProduct a) b) b
 
 initFactorsSeq rs a b = as where
     ic = intersect (names a) (names b)
@@ -202,13 +209,12 @@ solveFactorsH
   :: (Coord t, Random t, Compat i, Num (NArray i t), Normed (Vector t))
      => Int -- ^ seed for random initialization
      -> ([NArray i t] -> [NArray i t]) -- ^ post processing of the solution after each iteration (e.g. id)
-     -> Double -- ^ delta: minimum relative improvement in the optimization (percent, e.g. 0.1)
-     -> Double -- ^ epsilon: frob norm of the right hand side
+     -> ALSParam      -- ^ optimization parameters
      -> [NArray i t] -- ^ coefficient array (a), (also factorized)
      -> [[Char]] -- ^ list of index pairs for the factors
      -> ([NArray i t], [Double]) -- ^ solution and error history
-solveFactorsH seed post delta epsilon a pairs =
-    mlSolveH post delta epsilon a (initFactorsHRandom seed (smartProduct a) pairs)
+solveFactorsH seed post params a pairs =
+    mlSolveH post params a (initFactorsHRandom seed (smartProduct a) pairs)
 
 initFactorsHSeq rs a pairs = as where
     [ir,it] = map (map return) (transpose pairs)
@@ -233,3 +239,7 @@ eqnorm as = as' where
     fs = map (frobT) as
     s = product fs ** (1/fromIntegral n)
     as' = zipWith g as fs where g a f = a * real (scalar (s/f))
+
+-- | nMax = 20, epsilon = 1E-3, delta = 1
+defaultParameters :: ALSParam
+defaultParameters = ALSParam {nMax = 20, epsilon = 1E-3, delta = 1}

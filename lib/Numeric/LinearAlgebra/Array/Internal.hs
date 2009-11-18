@@ -31,7 +31,7 @@ module Numeric.LinearAlgebra.Array.Internal (
     mkNArray,
     fromVector, fromMatrix,
     -- * Array manipulation
-    rename,(!),
+    rename,
     parts, partsRaw,
     (|*|),
     analyzeProduct,
@@ -41,12 +41,12 @@ module Numeric.LinearAlgebra.Array.Internal (
     extract,
     onIndex,
     -- * Utilities
-    reorder, (~>),
+    reorder,
     sameStructure,
     conformable,
     makeConformant,
-    mapTypes,
-    renameRaw,
+    mapTypes, mapNames,
+    renameRaw, renameExplicit,
     newIndex,
     basisOf,
     common,
@@ -80,7 +80,7 @@ type Name = String
 data Idx i = Idx { iDim  :: Int
                  , iName :: Name
                  , iType :: i
-                 } deriving (Eq)
+                 } deriving (Eq,Ord)
 
 
 
@@ -106,15 +106,9 @@ scalar :: Coord t => t -> NArray i t
 scalar x = A [] (fromList [x])
 
 
--- | 'rename' the indices with single-letter names. Equal indices of compatible type are contracted out.
-infixl 8 !
-(!) :: (Coord t, Compat i)
-       => NArray i t
-       -> String   -- ^ new indices
-       -> NArray i t
-t ! ns = rename t (map return ns)
 
--- | Rename indices. Equal indices are contracted out.
+
+-- | Rename indices (in the internal order). Equal indices are contracted out.
 rename :: (Coord t, Compat i)
        => NArray i t
        -> [Name]     -- ^ new names
@@ -131,10 +125,17 @@ renameRaw (A d v) l | length l == length d = A d' v
 
 mapDims f (A d v) = A (map f d) v
 
-mapTypes :: (i1 -> i) -> NArray i1 t -> NArray i t
+mapTypes :: (i1 -> i2) -> NArray i1 t -> NArray i2 t
 mapTypes f = mapDims (\i -> i {iType = f (iType i)})
 
--- mapNames f = mapDims (\i -> i {iName = f (iName i)})
+mapNames :: (Name -> Name) -> NArray i t -> NArray i t
+mapNames f = mapDims (\i -> i {iName = f (iName i)})
+
+-- | Rename indices using an association list.
+renameExplicit :: (Compat i, Coord t) => [(Name,Name)] -> NArray i t -> NArray i t
+renameExplicit al = g . mapNames f where
+    f n = maybe n id (lookup n al)
+    g t = reorder orig (contract t) where orig = nub (names t) \\ common1 t
 
 -- | Index names.
 names :: NArray i t -> [Name]
@@ -246,14 +247,6 @@ reorder ns b | ns == names b = b
              | otherwise = error $ "wrong index sequence " ++ show ns
                                     ++ " to reorder "++(show $ names b)
 
-
--- | 'reorder' (transpose) the dimensions of the array (with single letter names).
---
--- Operations are defined by named indices, so the transposed array is operationally equivalent to the original one.
-infixl 8 ~>
-(~>) :: (Coord t) => NArray i t -> String -> NArray i t
-t ~> ns = reorder (map return ns) t
-
 ----------------------------------------------------------------------
 
 -- | Apply a function (defined on hmatrix 'Vector's) to all elements of a structure.
@@ -266,7 +259,7 @@ mapArray f t
 liftNA2 f (A d1 v1) (A _d2 v2) = A d1 (f v1 v2)
 
 -- | Class of compatible indices for contractions.
-class (Eq a, Show (Idx a)) => Compat a where
+class (Eq a, Show (Idx a), Ord a) => Compat a where
     compat :: Idx a -> Idx a -> Bool
     opos   :: Idx a -> Idx a
 

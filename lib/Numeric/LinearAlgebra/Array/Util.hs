@@ -19,7 +19,7 @@ module Numeric.LinearAlgebra.Array.Util (
     scalar,
     order, names, size, sizes, typeOf, dims, coords,
 
-    rename, (!),
+    rename, (!), renameExplicit, (>@>), (!>),
 
     parts,
     newIndex,
@@ -46,7 +46,7 @@ import Numeric.LinearAlgebra.Array.Internal
 import Numeric.LinearAlgebra.Array.Display
 import Data.Packed(Container(..))
 import Numeric.LinearAlgebra.Array.Simple
-import Data.List(intersperse)
+import Data.List(intersperse,sort)
 
 -- infixl 9 #
 -- (#) :: [Int] -> [Double] -> Array Double
@@ -60,3 +60,34 @@ diagT v n = replicate n k `listArray` concat (intersperse z (map return v))
           nzeros = (tot - k) `div` (k-1)
           z = replicate nzeros 0
 
+
+-- | Explicit renaming of single letter index names.
+--
+-- For instance, @t >\@> \"pi qj\"@ changes index \"p\" to \"i\" and \"q\" to \"j\".
+(>@>) :: (Compat i, Coord t) => NArray i t -> [Char] -> NArray i t
+infixl 9 >@>
+t >@> s = renameExplicit (map (\[a,b]->([a],[b])) (words s)) t
+
+
+-- | Rename the ordered dimensions of an array (contravariant < covariant), using single letter names.
+(!>) :: (Compat i, Coord t) => NArray i t -> [Char] -> NArray i t
+infixl 9 !>
+t !> s = renameExplicit (zip od (map return s)) t
+    where od = map iName (sort (dims t))
+
+
+-- | 'rename' the indices (in the internal order) with single-letter names. Equal indices of compatible type are contracted out.
+infixl 8 !
+(!) :: (Coord t, Compat i)
+       => NArray i t
+       -> String   -- ^ new indices
+       -> NArray i t
+t ! ns = rename t (map return ns)
+
+
+-- | 'reorder' (transpose) dimensions of the array (with single letter names).
+--
+-- Operations are defined by named indices, so the transposed array is operationally equivalent to the original one.
+infixl 8 ~>
+(~>) :: (Coord t) => NArray i t -> String -> NArray i t
+t ~> ns = reorder (map return ns) t

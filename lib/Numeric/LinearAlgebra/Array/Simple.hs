@@ -26,7 +26,7 @@ import Data.Packed
 
 
 instance Show (Idx None) where
-    show (Idx n s _t) = show n ++ ":" ++ s
+    show (Idx _t n s) = show n ++ ":" ++ s
 
 -- | Unespecified coordinate type. Contractions only
 -- require equal dimension.
@@ -51,6 +51,6 @@ listArray :: (Coord t)
     -> [t]   -- ^ elements
     -> Array t
 listArray ds cs = mkNArray dms (product ds |> (cs ++ repeat 0))
-    where dms = zipWith3 Idx ds (map show [1::Int ..]) (repeat None)
+    where dms = zipWith3 Idx (repeat None) ds (map show [1::Int ..])
 
 

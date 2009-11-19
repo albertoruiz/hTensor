@@ -36,11 +36,11 @@ data Variant = Contra | Co deriving (Eq,Ord)
 
 instance Compat Variant where
     compat d1 d2 = iDim d1 == iDim d2 && iType d1 /= iType d2
-    opos (Idx n s x) = Idx n s (flipV x)
+    opos (Idx x n s) = Idx (flipV x) n s
 
 instance Show (Idx Variant) where
-    show (Idx n s Co)     = show n ++ "_" ++ s
-    show (Idx n s Contra) = show n ++ "^" ++ s
+    show (Idx Co n s)     = show n ++ "_" ++ s
+    show (Idx Contra n s) = show n ++ "^" ++ s
 
 instance (Coord t) => Show (Tensor t) where
     show t | null (dims t) = show (coords t @>0)
@@ -57,7 +57,7 @@ listTensor :: Coord t
            -> [t]   -- ^ coordinates
            -> Tensor t
 listTensor ds cs = mkNArray dms (product ds' |> (cs ++ repeat 0))
-    where dms = zipWith3 Idx ds' (map show [1::Int ..]) (map f ds)
+    where dms = zipWith3 Idx (map f ds) ds' (map show [1::Int ..])
           ds' = map abs ds
           f n | n>0       = Contra
               | otherwise = Co

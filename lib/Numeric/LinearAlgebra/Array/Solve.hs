@@ -109,7 +109,7 @@ optimize method errfun s0 p = (sol,e) where
     errs = map errfun sols
     (sol,e) = convergence (zip sols errs) []
     convergence [] _  = error "impossible"
-    convergence [(s,e)] prev = (s, e:prev)
+    convergence [(s,err)] prev = (s, err:prev)
     convergence ((s1,e1):(s2,e2):ses) prev
         | e1 < epsilon p = (s1, e1:prev)
         | abs (100*(e1 - e2)/e1) < delta p = (s2, e2:prev)
@@ -181,15 +181,18 @@ solveFactors :: (Coord t, Random t, Compat i, Num (NArray i t), Normed (Vector t
              -> ([NArray i t]->[NArray i t]) -- ^ post processing of the solution after each iteration (e.g. id or eqnorm)
              -> ALSParam      -- ^ optimization parameters
              -> [NArray i t] -- ^ source (also factorized)
-             -> NArray i t -- ^ target
+             -> String       -- ^ index pairs for the factors separated by spaces
+             -> NArray i t   -- ^ target
              -> ([NArray i t],[Double]) -- ^ solution and error history
-solveFactors seed post params a b =
-    mlSolve post params a (initFactorsRandom seed (smartProduct a) b) b
+solveFactors seed post params a pairs b =
+    mlSolve post params a (initFactorsRandom seed (smartProduct a) pairs b) b
 
-initFactorsSeq rs a b = as where
+initFactorsSeq rs a pairs b | ok = as
+                            | otherwise = error "solveFactors index pairs"
+  where
+    (ia,ib) = unzip (map (\[x,y]->([x],[y])) (words pairs))
     ic = intersect (names a) (names b)
-    ib = names b \\ ic
-    ia = names a \\ ic
+    ok = sort (names b\\ic) == sort ib && sort (names a\\ic) == sort ia
     db = selDims (dims b) ib
     da = selDims (dims a) ia
     nb = map iDim db
@@ -211,13 +214,13 @@ solveFactorsH
      -> ([NArray i t] -> [NArray i t]) -- ^ post processing of the solution after each iteration (e.g. id)
      -> ALSParam      -- ^ optimization parameters
      -> [NArray i t] -- ^ coefficient array (a), (also factorized)
-     -> [[Char]] -- ^ list of index pairs for the factors
+     -> String       -- ^ index pairs for the factors separated by spaces
      -> ([NArray i t], [Double]) -- ^ solution and error history
 solveFactorsH seed post params a pairs =
     mlSolveH post params a (initFactorsHRandom seed (smartProduct a) pairs)
 
 initFactorsHSeq rs a pairs = as where
-    [ir,it] = map (map return) (transpose pairs)
+    (ir,it) = unzip (map (\[x,y]->([x],[y])) (words pairs))
     nr = map (flip size a) ir
     nt = map (flip size a) it
     ts = takes (zipWith (*) nr nt) rs

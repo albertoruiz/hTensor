@@ -163,7 +163,7 @@ dummyAt :: Int -> NArray i t -> NArray i t
 dummyAt k t = mkNArray d' (coords t) where
     (d1,d2) = splitAt k (dims t)
     d' = d1 ++ d : d2
-    d = Idx 1 "*" (iType (head (dims t))) -- undefined
+    d = Idx (iType (head (dims t))) 1 "*"
 
 -- | Rename indices so that they are not shown in formatted output.
 noIdx :: Compat i => NArray i t -> NArray i t

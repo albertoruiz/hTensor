@@ -29,7 +29,6 @@ import Data.List
 import System.Random
 import Control.Parallel.Strategies
 
-
 {- | Multilinear Singular Value Decomposition (or Tucker's method, see Lathauwer et al.).
 
     The first element in the result pair is a list with the core (head) and rotations so that
@@ -37,13 +36,11 @@ import Control.Parallel.Strategies
 
     The second element is a list of singular values along each mode,
     to give some idea about core structure.
-
-    Rotations are computed in parallel.
 -}
 hosvd :: Array Double -> ([Array Double],[Vector Double])
 hosvd t = (factors,ss)
     where factors = core!(map head dummies) : zipWith (!) (map (fromMatrix None None . trans) rs) axs
-          (rs,ss) = unzip $ parMap rnf usOfSVD $ flats t
+          (rs,ss) = unzip $ parMap rwhnf usOfSVD $ flats t
           n = length rs
           dummies = take n $ map return ['a'..'z'] \\ names t
           axs = zipWith (++) dummies (names t)

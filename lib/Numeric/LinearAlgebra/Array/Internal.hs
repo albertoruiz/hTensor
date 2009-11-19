@@ -63,7 +63,7 @@ import Data.List
 import Numeric.LinearAlgebra((<>),Field)
 import Control.Applicative
 import Data.Function(on)
-import Control.Parallel.Strategies
+-- import Control.Parallel.Strategies
 import Debug.Trace
 
 debug m f x = trace (m ++ show (f x)) x
@@ -77,12 +77,10 @@ instance Coord (Complex Double)
 type Name = String
 
 -- | Dimension descriptor.
-data Idx i = Idx { iDim  :: Int
+data Idx i = Idx { iType :: i
+                 , iDim  :: Int
                  , iName :: Name
-                 , iType :: i
                  } deriving (Eq,Ord)
-
-
 
 -- | A multidimensional array with index type i and elements t.
 data NArray i t = A { dims   :: [Idx i]   -- ^ Get detailed dimension information about the array.
@@ -316,7 +314,7 @@ newIndex:: (Coord t, Compat i) =>
      -> [NArray i t]
      -> NArray i t
 newIndex i name ts = r where
-    ds = Idx (length ts) name i : (dims (head cts))
+    ds = Idx i (length ts) name : (dims (head cts))
     cts = makeConformant ts
     r = mkNArray ds (join $ map coords cts)
 
@@ -338,8 +336,8 @@ instance (Coord t, Coord (Complex t), Compat i, Container Vector t) => Container
     complex = mapArray complex
 
 
-instance (NFData t, Element t) => NFData (NArray i t) where
-    rnf = rnf . coords
+-- instance (NFData t, Element t) => NFData (NArray i t) where
+--     rnf = rnf . coords
 
 ----------------------------------------------------------------------
 
@@ -374,12 +372,12 @@ asScalar a | order a == 0 = coords a @>0
 
 -- | Create a 1st order array from a 'Vector'.
 fromVector :: Compat i => i -> Vector t -> NArray i t
-fromVector i v = mkNArray [Idx (dim v) "1" i ] v
+fromVector i v = mkNArray [Idx i (dim v) "1"] v
 
 -- | Create a 2nd order array from a 'Matrix'.
 fromMatrix :: (Compat i, Coord t) => i -> i -> Matrix t -> NArray i t
-fromMatrix ir ic m = mkNArray [Idx (rows m) "1" ir,
-                               Idx (cols m) "2" ic] (flatten m)
+fromMatrix ir ic m = mkNArray [Idx ir (rows m) "1",
+                               Idx ic (cols m) "2"] (flatten m)
 
 ------------------------------------------------------------------------
 

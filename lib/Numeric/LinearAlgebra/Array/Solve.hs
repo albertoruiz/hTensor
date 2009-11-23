@@ -14,12 +14,15 @@
 
 module Numeric.LinearAlgebra.Array.Solve (
 -- * Linear systems
+-- ** General
     solve, solveHomog, solveHomog1, solveH,
+-- ** From samples
+    estimateMO, estimateMOH,
 -- *  Multilinear systems
 -- ** General
     ALSParam(..), defaultParameters,
     mlSolve, mlSolveH,
--- ** Convenience functions for order-2 unknowns
+-- ** Factorized
     solveFactors, solveFactorsH,
 -- * Utilities
     eps, eqnorm, infoRank,
@@ -27,8 +30,9 @@ module Numeric.LinearAlgebra.Array.Solve (
 ) where
 
 import Numeric.LinearAlgebra.Array.Util
+import Numeric.LinearAlgebra.Exterior
 import Numeric.LinearAlgebra.Array.Internal(mkNArray, selDims, debug)
-import Numeric.LinearAlgebra
+import Numeric.LinearAlgebra hiding ((.*))
 import Data.List
 import System.Random
 
@@ -60,9 +64,7 @@ solve' g a b = x where
 solveHomog :: (Compat i, Coord t)
            =>  NArray i t    -- ^ coefficients (a)
            -> [Name]         -- ^ desired dimensions for the result
-                             --   (a subset selected from the target, since
-                             --   it makes no sense to have extra dimensions
-                             --   in the resulting zero array).
+                             --   (a subset selected from the target).
            -> Either Double Int -- ^ Left \"numeric zero\" (e.g. eps), Right \"theoretical\" rank
            -> [NArray i t] -- ^ basis for the solutions (x)
 solveHomog = solveHomog' id
@@ -86,7 +88,7 @@ solveHomog1 = solveHomog1' id
 solveHomog1' g m ns = head $ solveHomog' g m ns (Right (k-1))
     where k = product $ map iDim $ selDims (dims m) ns
 
--- | 'solveHomog1' for single letter index names
+-- | 'solveHomog1' for single letter index names.
 solveH :: (Compat i, Coord t) => NArray i t -> [Char] -> NArray i t
 solveH m ns = solveHomog1 m (map return ns)
 
@@ -96,13 +98,13 @@ solveH m ns = solveHomog1 m (map return ns)
 data ALSParam i t = ALSParam
     { nMax  ::   Int     -- ^ maximum number of iterations
     , delta ::   Double  -- ^ minimum relative improvement in the optimization (percent, e.g. 0.1)
-    , epsilon :: Double  -- ^ epsilon: maximum relative error 
-                         --   for nonhomegenous problems this is a reconstruction error in percent (e.g.
-                         --   1E-3), and for homogeneous problems this is the frob norm of the
-                         --  expected zero structure in th right hand side.
-    , post :: [NArray i t] -> [NArray i t] -- ^ post-processing function after each full iteration (e.g. id)
-    , postk :: Int -> NArray i t -> NArray i t-- ^ post-processing function for the k-th argument (e.g. const id)
-    , presys :: Matrix t -> Matrix t -- ^ preprocessing function for the linear systems (eg. id, or 'infoRank')
+    , epsilon :: Double  -- ^ maximum relative error. For nonhomogenous problems it is
+                         --   the reconstruction error in percent (e.g.
+                         --   1E-3), and for homogeneous problems is the frobenius norm of the
+                         --  expected zero structure in the right hand side.
+    , post :: [NArray i t] -> [NArray i t] -- ^ post-processing function after each full iteration (e.g. 'id')
+    , postk :: Int -> NArray i t -> NArray i t-- ^ post-processing function for the k-th argument (e.g. 'const' 'id')
+    , presys :: Matrix t -> Matrix t -- ^ preprocessing function for the linear systems (eg. 'id', or 'infoRank')
     }
 
 
@@ -182,7 +184,7 @@ alsArgH params a k xs = sol where
 -------------------------------------------------------------
 
 {- | Given two arrays a (source) and  b (target), we try to compute linear transformations x,y,z,... for each dimension, such that product [a,x,y,z,...] == b.
-You can use 'eqnorm' for 'post' processing, or id.
+(We can use 'eqnorm' for 'post' processing, or 'id'.)
 -}
 solveFactors :: (Coord t, Random t, Compat i, Num (NArray i t), Normed (Vector t))
              => Int          -- ^ seed for random initialization
@@ -264,3 +266,38 @@ defaultParameters = ALSParam {
 -- coefficient matrix in each iteration of alternating least squares.
 infoRank :: Field t => Matrix t -> Matrix t
 infoRank a = debug "mlSolveHomog: " (const (rows a, cols a, rank a)) a
+
+--------------------------------------------------------
+
+-- | Estimate a multilinear transformation from samples.
+-- Each input in the list is an array n x object,
+-- with n, indicating each instance, common for all inputs,
+-- and the rest of dimensions different
+-- in different inputs, and consistent with the output index names.
+estimateMO :: (Coord t, Compat i)
+           => [NArray i t]
+           -> NArray i t
+           -> NArray i t
+estimateMO inputs output = solve (outerMass "estimateMultilinear" inputs output) output
+
+outerMass msg inputs output =
+    case commonNames (output:inputs) of
+        [_] -> foldl1' (.*) inputs
+        _   -> error $ msg ++": not a single common index"
+
+commonNames as = foldl1' intersect (map names as)
+
+-- | Estimate a homogeneous multilinear transformation from input/output samples.
+-- The result must (provisionally) have order one (by n).
+estimateMOH :: [Tensor Double]
+           -> Tensor Double
+           -> Tensor Double
+estimateMOH inputs output = solveHomog1 ou ns where
+    aux = output * epsi
+    ns = nub (concatMap names (output:inputs)) \\ cn
+    k = size nr output
+    nr = head $ names output \\ cn
+    f = renameExplicit [("e2",nr)]
+    ou = f $ outerMass "estimateMultilinearHomog" (aux:inputs) output
+    cn = commonNames (output:inputs)
+    epsi = cov $ leviCivita k `rename` (nr : (take (k-1) $ (map (('e':).(:[])) ['2'..])))

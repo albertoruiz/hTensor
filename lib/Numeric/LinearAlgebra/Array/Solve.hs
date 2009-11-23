@@ -14,7 +14,7 @@
 
 module Numeric.LinearAlgebra.Array.Solve (
 -- * Linear systems
-    solve, solveHomog, solveH,
+    solve, solveHomog, solveHomog1, solveH,
 -- *  Multilinear systems
 -- ** General
     ALSParam(..), defaultParameters,
@@ -22,7 +22,8 @@ module Numeric.LinearAlgebra.Array.Solve (
 -- ** Convenience functions for order-2 unknowns
     solveFactors, solveFactorsH,
 -- * Utilities
-    eps, eqnorm
+    eps, eqnorm, infoRank,
+    solve', solveHomog', solveHomog1'
 ) where
 
 import Numeric.LinearAlgebra.Array.Util
@@ -39,20 +40,17 @@ solve :: (Compat i, Coord t)
         => NArray i t -- ^ coefficients (a)
         -> NArray i t -- ^ target       (b)
         -> NArray i t -- ^ result       (x)
-solve a b = x where
+solve = solve' id
+
+solve' g a b = x where
     nx = names a \\ names b
     na = names a \\ nx
     nb = names b \\ names a
-    aM = {-debug "aMnew: " id $-} matrixator a na nx
-    bM = {-debug "bMnew: " id $-} matrixator b na nb
-    xM = linearSolveSVD ({-debug "info = " (const info)-} aM) bM
+    aM = g $ matrixator a na nx
+    bM = matrixator b na nb
+    xM = linearSolveSVD aM bM
     dx = map opos (selDims (dims a) nx) ++ selDims (dims b) nb
-    -- filter ((`elem`(nx++nb)) .iName) (dims a ++ dims b)
     x = mkNArray dx (flatten xM)
-    -- info = ((rows aM, cols aM, cols bM), (na, nx, nb), dims a, dims b)
---    xM = debug "system: " (const info) $ linearSolveSVDR (Just (1E3*eps)) aM bM
---    info = show (names a) ++ show (names b) ++ show na ++ show nx ++ show nb ++ show dx
-
 
 
 -- | Solution of the homogeneous linear system a x = 0, where a is a
@@ -60,49 +58,58 @@ solve a b = x where
 --
 -- If the system is overconstrained we may provide the theoretical rank to get a MSE solution.
 solveHomog :: (Compat i, Coord t)
-           => NArray i t     -- ^ coefficients (a)
+           =>  NArray i t    -- ^ coefficients (a)
            -> [Name]         -- ^ desired dimensions for the result
                              --   (a subset selected from the target, since
                              --   it makes no sense to have extra dimensions
                              --   in the resulting zero array).
            -> Either Double Int -- ^ Left \"numeric zero\" (e.g. eps), Right \"theoretical\" rank
            -> [NArray i t] -- ^ basis for the solutions (x)
-solveHomog a nx' hint = xs where
+solveHomog = solveHomog' id
+
+solveHomog' g a nx' hint = xs where
     nx = filter (`elem` (names a)) nx'
     na = names a \\ nx
-    aM = matrixator a na nx
+    aM = g $ matrixator a na nx
     vs = nullspaceSVD hint aM (svd aM)
     dx = map opos (selDims (dims a) nx)
-    xs =
-         debug "mlSolveHomog: " (const (rows aM, cols aM, rank aM)) $
-         map (mkNArray dx) vs
+    xs = map (mkNArray dx) vs
 
--- | A simpler way to use 'solveHomog' for single letter index names, which returns just one solution.
+-- | A simpler way to use 'solveHomog', which returns just one solution.
 -- If the system is overconstrained it returns the MSE solution.
-solveH :: (Compat i, Coord t) => NArray i t -> [Char] -> NArray i t
-solveH m ns = solveH' m (map return ns)
+solveHomog1 :: (Compat i, Coord t)
+            => NArray i t
+            -> [Name]
+            -> NArray i t
+solveHomog1 = solveHomog1' id
 
-solveH' m ns = head $ solveHomog m ns (Right (k-1))
+solveHomog1' g m ns = head $ solveHomog' g m ns (Right (k-1))
     where k = product $ map iDim $ selDims (dims m) ns
 
+-- | 'solveHomog1' for single letter index names
+solveH :: (Compat i, Coord t) => NArray i t -> [Char] -> NArray i t
+solveH m ns = solveHomog1 m (map return ns)
 
 -----------------------------------------------------------------------
 
 -- | optimization parameters for alternating least squares
-data ALSParam = ALSParam
+data ALSParam i t = ALSParam
     { nMax  ::   Int     -- ^ maximum number of iterations
     , delta ::   Double  -- ^ minimum relative improvement in the optimization (percent, e.g. 0.1)
     , epsilon :: Double  -- ^ epsilon: maximum relative error 
                          --   for nonhomegenous problems this is a reconstruction error in percent (e.g.
                          --   1E-3), and for homogeneous problems this is the frob norm of the
                          --  expected zero structure in th right hand side.
+    , post :: [NArray i t] -> [NArray i t] -- ^ post-processing function after each full iteration (e.g. id)
+    , postk :: Int -> NArray i t -> NArray i t-- ^ post-processing function for the k-th argument (e.g. const id)
+    , presys :: Matrix t -> Matrix t -- ^ preprocessing function for the linear systems (eg. id, or 'infoRank')
     }
 
 
 optimize :: (x -> x)      -- ^ method
          -> (x -> Double) -- ^ error function
          -> x             -- ^ starting point
-         -> ALSParam      -- ^ optimization parameters
+         -> ALSParam i t     -- ^ optimization parameters
          -> (x, [Double]) -- ^ solution and error history
 optimize method errfun s0 p = (sol,e) where
     sols = take (max 1 (nMax p)) $ iterate method s0
@@ -129,63 +136,63 @@ takes (n:ns) xs = take n xs : takes ns (drop n xs)
 
 -- | Solution of a multilinear system a x y z ... = b based on alternating least squares.
 mlSolve
-  :: (Compat i, Coord t, Num (NArray i t), Normed (Vector t)) =>
-     ([NArray i t] -> [NArray i t])  -- ^ post-processing function after each iteration (e.g. id)
-     -> ALSParam      -- ^ optimization parameters
+  :: (Compat i, Coord t, Num (NArray i t), Normed (Vector t))
+     => ALSParam i t     -- ^ optimization parameters
      -> [NArray i t]  -- ^ coefficients (a), given as a list of factors.
      -> [NArray i t]  -- ^ initial solution [x,y,z...]
      -> NArray i t    -- ^ target (b)
      -> ([NArray i t], [Double]) -- ^ Solution and error history
 mlSolve = als
 
-als post params a x0 b
-    = optimize (post.alsStep a b) (percent b . (a++)) x0 params
+als params a x0 b
+    = optimize (post params .alsStep params a b) (percent b . (a++)) x0 params
 
-alsStep a b x = (foldl1' (.) (map (alsArg a b) [0.. length x-1])) x
+alsStep params a b x = (foldl1' (.) (map (alsArg params a b) [0.. length x-1])) x
 
-alsArg _ _ _ [] = error "alsArg _ _ []"
-alsArg a b k xs = sol where
+alsArg _ _ _ _ [] = error "alsArg _ _ []"
+alsArg params a b k xs = sol where
     p = smartProduct (a ++ dropElemPos k xs)
-    x = solve p b
-    sol = replaceElemPos k x xs
+    x = solve' (presys params) p b
+    x' = postk params k x
+    sol = replaceElemPos k x' xs
 
 ----------------------------------------------------------
 
 -- | Solution of the homogeneous multilinear system a x y z ... = 0 based on alternating least squares.
 mlSolveH
-  :: (Compat i, Coord t, Num (NArray i t), Normed (Vector t)) =>
-     ([NArray i t] -> [NArray i t])  -- ^ post-processing function after each iteration (e.g. id)
-     -> ALSParam      -- ^ optimization parameters
+  :: (Compat i, Coord t, Num (NArray i t), Normed (Vector t))
+     => ALSParam  i t    -- ^ optimization parameters
      -> [NArray i t]  -- ^ coefficients (a), given as a list of factors.
      -> [NArray i t]  -- ^ initial solution [x,y,z...]
      -> ([NArray i t], [Double]) -- ^ Solution and error history
 mlSolveH = alsH
 
-alsH post params a x0
-    = optimize (post.alsStepH a) (frobT . smartProduct . (a++)) x0 params
+alsH params a x0
+    = optimize (post params .alsStepH params a) (frobT . smartProduct . (a++)) x0 params
 
-alsStepH a x = (foldl1' (.) (map (alsArgH a) [0.. length x-1])) x
+alsStepH params a x = (foldl1' (.) (map (alsArgH params a) [0.. length x-1])) x
 
-alsArgH _ _ [] = error "alsArg _ _ []"
-alsArgH a k xs = sol where
+alsArgH _ _ _ [] = error "alsArg _ _ []"
+alsArgH params a k xs = sol where
     p = smartProduct (a ++ dropElemPos k xs)
-    x = solveH' p (names (xs!!k))
-    sol = replaceElemPos k x xs
+    x = solveHomog1' (presys params) p (names (xs!!k))
+    x' = postk params k x
+    sol = replaceElemPos k x' xs
 
 -------------------------------------------------------------
 
 {- | Given two arrays a (source) and  b (target), we try to compute linear transformations x,y,z,... for each dimension, such that product [a,x,y,z,...] == b.
+You can use 'eqnorm' for 'post' processing, or id.
 -}
 solveFactors :: (Coord t, Random t, Compat i, Num (NArray i t), Normed (Vector t))
              => Int          -- ^ seed for random initialization
-             -> ([NArray i t]->[NArray i t]) -- ^ post processing of the solution after each iteration (e.g. id or eqnorm)
-             -> ALSParam      -- ^ optimization parameters
+             -> ALSParam i t     -- ^ optimization parameters
              -> [NArray i t] -- ^ source (also factorized)
              -> String       -- ^ index pairs for the factors separated by spaces
              -> NArray i t   -- ^ target
              -> ([NArray i t],[Double]) -- ^ solution and error history
-solveFactors seed post params a pairs b =
-    mlSolve post params a (initFactorsRandom seed (smartProduct a) pairs b) b
+solveFactors seed params a pairs b =
+    mlSolve params a (initFactorsRandom seed (smartProduct a) pairs b) b
 
 initFactorsSeq rs a pairs b | ok = as
                             | otherwise = error "solveFactors index pairs"
@@ -211,13 +218,12 @@ initFactorsRandom seed a b = initFactorsSeq (randomRs (-1,1) (mkStdGen seed)) a 
 solveFactorsH
   :: (Coord t, Random t, Compat i, Num (NArray i t), Normed (Vector t))
      => Int -- ^ seed for random initialization
-     -> ([NArray i t] -> [NArray i t]) -- ^ post processing of the solution after each iteration (e.g. id)
-     -> ALSParam      -- ^ optimization parameters
+     -> ALSParam  i t    -- ^ optimization parameters
      -> [NArray i t] -- ^ coefficient array (a), (also factorized)
      -> String       -- ^ index pairs for the factors separated by spaces
      -> ([NArray i t], [Double]) -- ^ solution and error history
-solveFactorsH seed post params a pairs =
-    mlSolveH post params a (initFactorsHRandom seed (smartProduct a) pairs)
+solveFactorsH seed params a pairs =
+    mlSolveH params a (initFactorsHRandom seed (smartProduct a) pairs)
 
 initFactorsHSeq rs a pairs = as where
     (ir,it) = unzip (map (\[x,y]->([x],[y])) (words pairs))
@@ -243,6 +249,18 @@ eqnorm as = as' where
     s = product fs ** (1/fromIntegral n)
     as' = zipWith g as fs where g a f = a * real (scalar (s/f))
 
--- | nMax = 20, epsilon = 1E-3, delta = 1
-defaultParameters :: ALSParam
-defaultParameters = ALSParam {nMax = 20, epsilon = 1E-3, delta = 1}
+-- | nMax = 20, epsilon = 1E-3, delta = 1, post = id, postk = const id, presys = id
+defaultParameters :: ALSParam i t
+defaultParameters = ALSParam {
+    nMax = 20,
+    epsilon = 1E-3,
+    delta = 1,
+    post = id,
+    postk = const id,
+    presys = id
+  }
+
+-- | debugging function for 'presys', which shows rows, columns and rank of the
+-- coefficient matrix in each iteration of alternating least squares.
+infoRank :: Field t => Matrix t -> Matrix t
+infoRank a = debug "mlSolveHomog: " (const (rows a, cols a, rank a)) a

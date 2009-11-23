@@ -98,11 +98,11 @@ is based on the hosvd:
 
 -}
 cpRun :: [Array Double] -- ^ starting point
-      -> ALSParam      -- ^ optimization parameters
+      -> ALSParam None Double     -- ^ optimization parameters
       -> Array Double -- ^ input array
       -> ([Array Double], [Double]) -- ^ factors and error history
 cpRun s0 params t = (unitRows $ head s0 : sol, errs) where
-    (sol,errs) = mlSolve id params [head s0] (tail s0) t
+    (sol,errs) = mlSolve params [head s0] (tail s0) t
 
 
 
@@ -132,7 +132,7 @@ z = cpR seed 0.1 0.1 t
 
 -}
 cpAuto :: (Int -> [Array Double]) -- ^ Initialization function for each rank
-       -> ALSParam      -- ^ optimization parameters
+       -> ALSParam None Double    -- ^ optimization parameters
        -> Array Double -- ^ input array
        -> [Array Double] -- ^ factors
 cpAuto finit params t = fst . head . filter ((<epsilon params). head . snd)

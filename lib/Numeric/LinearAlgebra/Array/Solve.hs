@@ -14,10 +14,9 @@
 
 module Numeric.LinearAlgebra.Array.Solve (
 -- * Linear systems
--- ** General
-    solve, solveHomog, solveHomog1, solveH,
--- ** From samples
-    estimateMO, estimateMOH,
+    solve,
+    solveHomog, solveHomog1, solveH,
+    solveP,
 -- *  Multilinear systems
 -- ** General
     ALSParam(..), defaultParameters,
@@ -26,7 +25,7 @@ module Numeric.LinearAlgebra.Array.Solve (
     solveFactors, solveFactorsH,
 -- * Utilities
     eps, eqnorm, infoRank,
-    solve', solveHomog', solveHomog1'
+    solve', solveHomog', solveHomog1', solveP'
 ) where
 
 import Numeric.LinearAlgebra.Array.Util
@@ -92,13 +91,33 @@ solveHomog1' g m ns = head $ solveHomog' g m ns (Right (k-1))
 solveH :: (Compat i, Coord t) => NArray i t -> [Char] -> NArray i t
 solveH m ns = solveHomog1 m (map return ns)
 
+
+-- | Solution of the linear system a x = b, where a and b are
+-- general multidimensional arrays, with homogeneous equality along a given index.
+solveP :: Tensor Double   -- ^ coefficients (a)
+       -> Tensor Double   -- ^ desired result (b)
+       -> Name            -- ^ the homogeneous dimension
+       -> Tensor Double   -- ^ result (x)
+solveP = solveP' id
+
+solveP' g a b h = mapTat (solveP1 g h a) (names b \\ (h:names a)) b
+
+-- solveP for a single right hand side
+solveP1 g nh a b = solveHomog1' g ou ns where
+    k = size nh b
+    epsi = cov $ leviCivita k `rename` (nh : (take (k-1) $ (map (('e':).(:[])) ['2'..])))
+    ou = a .* b' * epsi
+    ns = (names a \\ names b) ++ x
+    b' = renameExplicit [(nh,"e2")] b
+    x = if nh `elem` (names a) then [] else [nh]
+
 -----------------------------------------------------------------------
 
 -- | optimization parameters for alternating least squares
 data ALSParam i t = ALSParam
     { nMax  ::   Int     -- ^ maximum number of iterations
     , delta ::   Double  -- ^ minimum relative improvement in the optimization (percent, e.g. 0.1)
-    , epsilon :: Double  -- ^ maximum relative error. For nonhomogenous problems it is
+    , epsilon :: Double  -- ^ maximum relative error. For nonhomogeneous problems it is
                          --   the reconstruction error in percent (e.g.
                          --   1E-3), and for homogeneous problems is the frobenius norm of the
                          --  expected zero structure in the right hand side.
@@ -262,42 +281,7 @@ defaultParameters = ALSParam {
     presys = id
   }
 
--- | debugging function for 'presys', which shows rows, columns and rank of the
--- coefficient matrix in each iteration of alternating least squares.
+-- | debugging function (e.g. for 'presys'), which shows rows, columns and rank of the
+-- coefficient matrix of a linear system.
 infoRank :: Field t => Matrix t -> Matrix t
-infoRank a = debug "mlSolveHomog: " (const (rows a, cols a, rank a)) a
-
---------------------------------------------------------
-
--- | Estimate a multilinear transformation from samples.
--- Each input in the list is an array n x object,
--- with n, indicating each instance, common for all inputs,
--- and the rest of dimensions different
--- in different inputs, and consistent with the output index names.
-estimateMO :: (Coord t, Compat i)
-           => [NArray i t]
-           -> NArray i t
-           -> NArray i t
-estimateMO inputs output = solve (outerMass "estimateMultilinear" inputs output) output
-
-outerMass msg inputs output =
-    case commonNames (output:inputs) of
-        [_] -> foldl1' (.*) inputs
-        _   -> error $ msg ++": not a single common index"
-
-commonNames as = foldl1' intersect (map names as)
-
--- | Estimate a homogeneous multilinear transformation from input/output samples.
--- The result must (provisionally) have order one (by n).
-estimateMOH :: [Tensor Double]
-           -> Tensor Double
-           -> Tensor Double
-estimateMOH inputs output = solveHomog1 ou ns where
-    aux = output * epsi
-    ns = nub (concatMap names (output:inputs)) \\ cn
-    k = size nr output
-    nr = head $ names output \\ cn
-    f = renameExplicit [("e2",nr)]
-    ou = f $ outerMass "estimateMultilinearHomog" (aux:inputs) output
-    cn = commonNames (output:inputs)
-    epsi = cov $ leviCivita k `rename` (nr : (take (k-1) $ (map (('e':).(:[])) ['2'..])))
+infoRank a = debug "" (const (rows a, cols a, rank a)) a

@@ -24,9 +24,9 @@ module Numeric.LinearAlgebra.Array.Util (
     parts,
     newIndex,
 
-    mapArray, zipArray, (|*|), smartProduct,
+    mapArray, zipArray, (|*|), smartProduct, outers,
 
-    extract, onIndex,
+    extract, onIndex, mapTat,
 
     reorder, (~>),
     formatArray, formatFixed, formatScaled,
@@ -46,7 +46,7 @@ import Numeric.LinearAlgebra.Array.Internal
 import Numeric.LinearAlgebra.Array.Display
 import Data.Packed(Container(..))
 import Numeric.LinearAlgebra.Array.Simple
-import Data.List(intersperse,sort)
+import Data.List(intersperse,sort,foldl1')
 
 -- infixl 9 #
 -- (#) :: [Int] -> [Double] -> Array Double
@@ -91,3 +91,17 @@ t ! ns = rename t (map return ns)
 infixl 8 ~>
 (~>) :: (Coord t) => NArray i t -> String -> NArray i t
 t ~> ns = reorder (map return ns) t
+
+
+-- | Map a function at the internal level selected by a set of indices
+mapTat :: (Coord a, Coord b, Compat i)
+         => (NArray i a -> NArray i b)
+         -> [Name]
+         -> NArray i a
+         -> NArray i b
+mapTat f [] = f
+mapTat f (a:as) = onIndex (map $ mapTat f as) a
+
+-- | Outer product of a list of arrays along the common indices.
+outers :: (Coord a, Compat i) => [NArray i a] -> NArray i a
+outers = foldl1' (zipArray (*))

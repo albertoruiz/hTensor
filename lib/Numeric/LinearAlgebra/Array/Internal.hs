@@ -50,7 +50,7 @@ module Numeric.LinearAlgebra.Array.Internal (
     newIndex,
     basisOf,
     common,
-    selDims,
+    selDims, mapDims,
     takeDiagT, atT,
     firstIdx, fibers, matrixator,
     Coord,

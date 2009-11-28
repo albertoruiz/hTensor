@@ -36,7 +36,9 @@ module Numeric.LinearAlgebra.Array.Util (
     makeConformant,
     basisOf,
     atT, takeDiagT, diagT,
-    asScalar, asVector, asMatrix,
+    mkFun, mkAssoc, setType,
+    renameParts,
+    asScalar, asVector, asMatrix, applyAsMatrix,
     fibers, matrixator, analyzeProduct,
     fromVector, fromMatrix,
     Container(..),
@@ -44,7 +46,7 @@ module Numeric.LinearAlgebra.Array.Util (
 
 import Numeric.LinearAlgebra.Array.Internal
 import Numeric.LinearAlgebra.Array.Display
-import Data.Packed(Container(..))
+import Data.Packed(Container(..),Matrix)
 import Numeric.LinearAlgebra.Array.Simple
 import Data.List(intersperse,sort,foldl1')
 
@@ -105,3 +107,33 @@ mapTat f (a:as) = onIndex (map $ mapTat f as) a
 -- | Outer product of a list of arrays along the common indices.
 outers :: (Coord a, Compat i) => [NArray i a] -> NArray i a
 outers = foldl1' (zipArray (*))
+
+-- | Define an array using a function.
+mkFun :: [Int] -> ([Int] -> Double) -> Array Double
+mkFun ds f = listArray ds $ map f (sequence $ map (enumFromTo 0 . subtract 1. fromIntegral) $ ds)
+
+-- | Define an array using an association list.
+mkAssoc :: [Int] -> [([Int], Double)] -> Array Double
+mkAssoc ds ps = mkFun ds f where
+   f = maybe 0 id . flip lookup ps
+
+-- | Change type of index.
+setType :: (Compat i, Coord t) => Name -> i -> NArray i t -> NArray i t
+setType n t a = mapDims f a where
+    f i | iName i == n = i {iType = t}
+        | otherwise    = i
+
+-- | Extract the 'parts' of an array, and rename one of the remaining indices
+-- with succesive integers.
+renameParts :: (Compat i, Coord t)
+            => Name         -- ^ index of the parts to extract
+            -> NArray i t   -- ^ input array
+            -> Name         -- ^ index to rename
+            -> String       -- ^ prefix for the new names
+            -> [NArray i t] -- ^ list or results
+renameParts p t x pre = zipWith renameExplicit [[(x,pre ++ show k)] | k<-[1::Int ..] ] (parts t p)
+
+
+applyAsMatrix :: (Coord t, Compat i) => (Matrix t -> Matrix t) -> (NArray i t -> NArray i t)
+applyAsMatrix f t = flip rename (names t) . fromMatrix r c . f . asMatrix $ t where
+   [r,c] = map (flip typeOf t) (names t)

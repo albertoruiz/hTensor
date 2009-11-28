@@ -30,7 +30,7 @@ instance Show (Idx None) where
 
 -- | Unespecified coordinate type. Contractions only
 -- require equal dimension.
-data None = None deriving (Eq,Ord)
+data None = None deriving (Eq,Ord,Show)
 
 
 instance Compat None where

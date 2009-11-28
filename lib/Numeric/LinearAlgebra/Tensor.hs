@@ -32,7 +32,7 @@ import Numeric.LinearAlgebra.Array
 
 type Tensor t = NArray Variant t
 
-data Variant = Contra | Co deriving (Eq,Ord)
+data Variant = Contra | Co deriving (Eq,Ord,Show)
 
 instance Compat Variant where
     compat d1 d2 = iDim d1 == iDim d2 && iType d1 /= iType d2

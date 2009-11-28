@@ -20,7 +20,7 @@ module Numeric.LinearAlgebra.Array.Solve (
 -- *  Multilinear systems
 -- ** General
     ALSParam(..), defaultParameters,
-    mlSolve, mlSolveH,
+    mlSolve, mlSolveH, mlSolveP,
 -- ** Factorized
     solveFactors, solveFactorsH,
 -- * Utilities
@@ -145,7 +145,15 @@ optimize method errfun s0 p = (sol,e) where
 
 percent t s = 100 * frobT (t - smartProduct s) / frobT t
 
+percentP h t s = 100 * frobT (t' - s') / frobT t' where
+    t' = f t
+    s' = f (smartProduct s)
+    f = mapTat g (names t \\ [h])
+    g v = v / atT v [n]
+    n = size h t - 1
+
 frobT t = pnorm PNorm2 . coords $ t
+--unitT t = t / scalar (frobT t)
 
 dropElemPos k xs = take k xs ++ drop (k+1) xs
 replaceElemPos k v xs = take k xs ++ v : drop (k+1) xs
@@ -193,12 +201,35 @@ alsH params a x0
 
 alsStepH params a x = (foldl1' (.) (map (alsArgH params a) [0.. length x-1])) x
 
-alsArgH _ _ _ [] = error "alsArg _ _ []"
+alsArgH _ _ _ [] = error "alsArgH _ _ []"
 alsArgH params a k xs = sol where
     p = smartProduct (a ++ dropElemPos k xs)
     x = solveHomog1' (presys params) p (names (xs!!k))
     x' = postk params k x
     sol = replaceElemPos k x' xs
+
+----------------------------------------------------------
+
+-- | Solution of a multilinear system a x y z ... = b, with a homogeneous index, based on alternating least squares.
+mlSolveP
+     :: ALSParam Variant Double     -- ^ optimization parameters
+     -> [Tensor Double]  -- ^ coefficients (a), given as a list of factors.
+     -> [Tensor Double]  -- ^ initial solution [x,y,z...]
+     -> Tensor Double    -- ^ target (b)
+     -> Name             -- ^ homogeneous index
+     -> ([Tensor Double], [Double]) -- ^ Solution and error history
+mlSolveP params a x0 b h
+    = optimize (post params . alsStepP params a b h) (percentP h b . (a++)) x0 params
+
+alsStepP params a b h x = (foldl1' (.) (map (alsArgP params a b h) [0.. length x-1])) x
+
+alsArgP _ _ _ _ _ [] = error "alsArgP _ _ []"
+alsArgP params a b h k xs = sol where
+    p = smartProduct (a ++ dropElemPos k xs)
+    x = solveP' (presys params)  p b h
+    x' = postk params k x
+    sol = replaceElemPos k x' xs
+
 
 -------------------------------------------------------------
 

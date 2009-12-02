@@ -161,6 +161,11 @@ replaceElemPos k v xs = take k xs ++ v : drop (k+1) xs
 takes [] _ = []
 takes (n:ns) xs = take n xs : takes ns (drop n xs)
 
+----------------------------------------------------------------------
+
+alsStep f params a x = (foldl1' (.) (map (f params a) [n,n-1 .. 0])) x
+    where n = length x - 1
+
 -----------------------------------------------------------------------
 
 -- | Solution of a multilinear system a x y z ... = b based on alternating least squares.
@@ -171,15 +176,11 @@ mlSolve
      -> [NArray i t]  -- ^ initial solution [x,y,z...]
      -> NArray i t    -- ^ target (b)
      -> ([NArray i t], [Double]) -- ^ Solution and error history
-mlSolve = als
-
-als params a x0 b
-    = optimize (post params .alsStep params a b) (percent b . (a++)) x0 params
-
-alsStep params a b x = (foldl1' (.) (map (alsArg params a b) [0.. length x-1])) x
+mlSolve params a x0 b
+    = optimize (post params . alsStep (alsArg b) params a) (percent b . (a++)) x0 params
 
 alsArg _ _ _ _ [] = error "alsArg _ _ []"
-alsArg params a b k xs = sol where
+alsArg b params a k xs = sol where
     p = smartProduct (a ++ dropElemPos k xs)
     x = solve' (presys params) p b
     x' = postk params k x
@@ -194,12 +195,8 @@ mlSolveH
      -> [NArray i t]  -- ^ coefficients (a), given as a list of factors.
      -> [NArray i t]  -- ^ initial solution [x,y,z...]
      -> ([NArray i t], [Double]) -- ^ Solution and error history
-mlSolveH = alsH
-
-alsH params a x0
-    = optimize (post params .alsStepH params a) (frobT . smartProduct . (a++)) x0 params
-
-alsStepH params a x = (foldl1' (.) (map (alsArgH params a) [0.. length x-1])) x
+mlSolveH params a x0
+    = optimize (post params . alsStep alsArgH params a) (frobT . smartProduct . (a++)) x0 params
 
 alsArgH _ _ _ [] = error "alsArgH _ _ []"
 alsArgH params a k xs = sol where
@@ -219,17 +216,14 @@ mlSolveP
      -> Name             -- ^ homogeneous index
      -> ([Tensor Double], [Double]) -- ^ Solution and error history
 mlSolveP params a x0 b h
-    = optimize (post params . alsStepP params a b h) (percentP h b . (a++)) x0 params
-
-alsStepP params a b h x = (foldl1' (.) (map (alsArgP params a b h) [0.. length x-1])) x
+    = optimize (post params . alsStep (alsArgP b h) params a) (percentP h b . (a++)) x0 params
 
 alsArgP _ _ _ _ _ [] = error "alsArgP _ _ []"
-alsArgP params a b h k xs = sol where
+alsArgP b h params a k xs = sol where
     p = smartProduct (a ++ dropElemPos k xs)
     x = solveP' (presys params)  p b h
     x' = postk params k x
     sol = replaceElemPos k x' xs
-
 
 -------------------------------------------------------------
 

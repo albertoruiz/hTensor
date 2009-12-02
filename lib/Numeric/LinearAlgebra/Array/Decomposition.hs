@@ -40,7 +40,7 @@ import Control.Parallel.Strategies
 hosvd :: Array Double -> ([Array Double],[Vector Double])
 hosvd t = (factors,ss)
     where factors = core!(map head dummies) : zipWith (!) (map (fromMatrix None None . trans) rs) axs
-          (rs,ss) = unzip $ parMap rwhnf usOfSVD $ flats t
+          (rs,ss) = unzip $ parMap rdeepseq usOfSVD $ flats t
           n = length rs
           dummies = take n $ map return ['a'..'z'] \\ names t
           axs = zipWith (++) dummies (names t)

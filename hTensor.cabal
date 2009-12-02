@@ -26,7 +26,7 @@ Description:
  A tutorial can be found in the website of the project.
 
 Category:           Math
-tested-with:        GHC ==6.10.3
+tested-with:        GHC ==6.10.4
 
 cabal-version:      >=1.2
 build-type:         Simple
@@ -45,7 +45,7 @@ library
     else
       build-depends:    base < 3
 
-    Build-Depends:      haskell98, hmatrix >= 0.6, containers, parallel, random
+    Build-Depends:      haskell98, hmatrix >= 0.7, containers, parallel >=2 , random
 
     hs-source-dirs:     lib
     Exposed-modules:    Numeric.LinearAlgebra.Array.Util

@@ -27,7 +27,7 @@ import Numeric.LinearAlgebra.Array.Solve
 import Numeric.LinearAlgebra hiding ((.*))
 import Data.List
 import System.Random
-import Control.Parallel.Strategies
+--import Control.Parallel.Strategies
 
 {- | Multilinear Singular Value Decomposition (or Tucker's method, see Lathauwer et al.).
 
@@ -40,7 +40,7 @@ import Control.Parallel.Strategies
 hosvd :: Array Double -> ([Array Double],[Vector Double])
 hosvd t = (factors,ss)
     where factors = core!(map head dummies) : zipWith (!) (map (fromMatrix None None . trans) rs) axs
-          (rs,ss) = unzip $ parMap rdeepseq usOfSVD $ flats t
+          (rs,ss) = unzip $ map usOfSVD $ flats t
           n = length rs
           dummies = take n $ map return ['a'..'z'] \\ names t
           axs = zipWith (++) dummies (names t)

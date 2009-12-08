@@ -41,6 +41,7 @@ module Numeric.LinearAlgebra.Array.Internal (
     extract,
     onIndex,
     -- * Utilities
+    seqIdx,
     reorder,
     sameStructure,
     conformable,
@@ -474,3 +475,9 @@ smartProduct' ts = r where
     r = smartProduct' (ts!!p * ts!!q : (dropElemPos p . dropElemPos q) ts)
 
 dropElemPos k xs = take k xs ++ drop (k+1) xs
+
+----------------------------------------------
+
+-- | sequence of n indices with given prefix
+seqIdx :: Int -> String -> [Name]
+seqIdx n prefix = [prefix ++ show k | k <- [1 .. n] ]

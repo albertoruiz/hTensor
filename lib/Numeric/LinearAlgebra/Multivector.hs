@@ -232,7 +232,7 @@ mat rowidx t = reshape c $ Array.coords t'
           t' = reorder (rowidx: (names t\\[rowidx])) t
 
 -- on the right
-pmat k b = mat "k" $ g!"ijk" * tb!"j"
+pmat k b = mat "k" $ g!!!"ijk" * tb!!!"j"
     where g = gatensor k
           tb = tmv k b
 

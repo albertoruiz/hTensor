@@ -21,7 +21,7 @@ module Numeric.LinearAlgebra.Array (
     listArray,
     scalar,
     index,
-    (!),(~>),
+    (!!!),(~>),
     (.*),
     printA
 ) where

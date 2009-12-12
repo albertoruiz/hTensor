@@ -45,7 +45,7 @@ library
     else
       build-depends:    base < 3
 
-    Build-Depends:      haskell98, hmatrix >= 0.6, containers, random
+    Build-Depends:      haskell98, hmatrix >= 0.7.2, containers, random
 
     hs-source-dirs:     lib
     Exposed-modules:    Numeric.LinearAlgebra.Array.Util

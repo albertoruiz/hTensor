@@ -167,4 +167,4 @@ dummyAt k t = mkNArray d' (coords t) where
 
 -- | Rename indices so that they are not shown in formatted output.
 noIdx :: Compat i => NArray i t -> NArray i t
-noIdx t = renameRaw t (map ('*':) (names t))
+noIdx t = renameSuperRaw t (map ('*':) (names t))

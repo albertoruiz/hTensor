@@ -31,7 +31,7 @@ module Numeric.LinearAlgebra.Array.Internal (
     mkNArray,
     fromVector, fromMatrix,
     -- * Array manipulation
-    rename,
+    renameRaw,
     parts, partsRaw,
     (|*|),
     analyzeProduct,
@@ -47,7 +47,7 @@ module Numeric.LinearAlgebra.Array.Internal (
     conformable,
     makeConformant,
     mapTypes, mapNames,
-    renameRaw, renameExplicit,
+    renameSuperRaw, renameExplicit,
     newIndex,
     basisOf,
     common,
@@ -81,7 +81,10 @@ type Name = String
 data Idx i = Idx { iType :: i
                  , iDim  :: Int
                  , iName :: Name
-                 } deriving (Eq,Ord)
+                 } deriving (Eq)
+
+instance Eq i => Ord (Idx i) where
+    compare = compare `on` iName
 
 -- | A multidimensional array with index type i and elements t.
 data NArray i t = A { dims   :: [Idx i]   -- ^ Get detailed dimension information about the array.
@@ -108,17 +111,17 @@ scalar x = A [] (fromList [x])
 
 
 -- | Rename indices (in the internal order). Equal indices are contracted out.
-rename :: (Coord t, Compat i)
+renameRaw :: (Coord t, Compat i)
        => NArray i t
        -> [Name]     -- ^ new names
        -> NArray i t
-rename t ns = reorder orig (contract t')
-    where t' = renameRaw t ns
+renameRaw t ns = reorder orig (contract t')
+    where t' = renameSuperRaw t ns
           orig = nub (names t') \\ common1 t'
 
 
-renameRaw (A d v) l | length l == length d = A d' v
-                    | otherwise = error $ "rename " ++ show d ++ " with " ++ show l
+renameSuperRaw (A d v) l | length l == length d = A d' v
+                    | otherwise = error $ "renameRaw " ++ show d ++ " with " ++ show l
     where d' = zipWith f d l
           f i n = i {iName=n}
 
@@ -258,7 +261,7 @@ mapArray f t
 liftNA2 f (A d1 v1) (A _d2 v2) = A d1 (f v1 v2)
 
 -- | Class of compatible indices for contractions.
-class (Eq a, Show (Idx a), Ord a) => Compat a where
+class (Eq a, Show (Idx a)) => Compat a where
     compat :: Idx a -> Idx a -> Bool
     opos   :: Idx a -> Idx a
 
@@ -280,7 +283,7 @@ getName t name = d where
 
 contract1c t n = contract1 renamed n n'
     where n' = " "++n++" " -- forbid spaces in names...
-          renamed = renameRaw (t) auxnames
+          renamed = renameSuperRaw (t) auxnames
           auxnames = h ++ (n':r)
           (h,_:r) = break (==n) (names t)
 
@@ -355,9 +358,10 @@ common f = commonval . map f where
 -- | Extract the 'Matrix' corresponding to a two-dimensional array,
 -- in the rows,cols order.
 asMatrix :: (Coord t) => NArray i t -> Matrix t
-asMatrix a | order a == 2 = reshape c (coords a)
+asMatrix a | order a == 2 = reshape c (coords a')
            | otherwise = error $ "asMatrix requires a 2nd order array."
-    where c = size (last (names a)) a
+    where c = size (last (names a')) a'
+          a' = reorder (sort (names a)) a
 
 -- | Extract the 'Vector' corresponding to a one-dimensional array.
 asVector :: (Coord t) => NArray i t -> Vector t

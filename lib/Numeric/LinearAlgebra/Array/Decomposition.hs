@@ -14,7 +14,7 @@
 
 module Numeric.LinearAlgebra.Array.Decomposition (
     -- * HOSVD
-    hosvd, truncateFactors,
+    hosvd, hosvd', truncateFactors,
     -- * CP
     cpAuto, cpRun, cpInitRandom, cpInitSvd,
     -- * Utilities
@@ -29,22 +29,37 @@ import Data.List
 import System.Random
 --import Control.Parallel.Strategies
 
-{- | Multilinear Singular Value Decomposition (or Tucker's method, see Lathauwer et al.).
+{- | Full version of 'hosvd'.
 
     The first element in the result pair is a list with the core (head) and rotations so that
-    t == product (fst (hsvd t)).
+    t == product (fst (hsvd' t)).
 
-    The second element is a list of singular values along each mode,
+    The second element is a list of rank and singular values along each mode,
     to give some idea about core structure.
 -}
-hosvd :: Array Double -> ([Array Double],[Vector Double])
-hosvd t = (factors,ss)
-    where factors = core!(map head dummies) : zipWith (!) (map (fromMatrix None None . trans) rs) axs
+hosvd' :: Array Double -> ([Array Double],[(Int,Vector Double)])
+hosvd' t = (factors,ss)
+    where factors = core!!!(map head dummies) : zipWith (!!!) (map (fromMatrix None None . trans) rs) axs
           (rs,ss) = unzip $ map usOfSVD $ flats t
           n = length rs
           dummies = take n $ map return ['a'..'z'] \\ names t
           axs = zipWith (++) dummies (names t)
-          core = product $ t!(map head dummies) : zipWith (!) (map (fromMatrix None None) rs) axs
+          core = product $ t!!!(map head dummies) : zipWith (!!!) (map (fromMatrix None None) rs) axs
+
+{- | Multilinear Singular Value Decomposition (or Tucker's method, see Lathauwer et al.).
+
+    The result is a list with the core (head) and rotations so that
+    t == product (hsvd t).
+
+    The core and the rotations are truncated to the rank of each mode.
+
+    Use 'hosvd'' to get full transformations and rank information about each mode.
+
+-}
+hosvd :: Array Double -> [Array Double]
+hosvd a = truncateFactors rs h where
+    (h,info) = hosvd' a
+    rs = map fst info
 
 
 -- get the matrices of the flattened tensor for all dimensions
@@ -55,16 +70,18 @@ flats t = map (flip fibers t) (names t)
 usOfSVD m = if rows m < cols m
         then let (s2,u) = eigSH' $ m <> ctrans m
                  s = sqrt (abs s2)
-              in (u,s)
+              in (u,r s)
         else let (s2,v) = eigSH' $ ctrans m <> m
                  s = sqrt (abs s2)
                  u = m <> v <> pinv (diag s)
-              in (u,s)
+              in (u,r s)
+    where r s = (ranksv (sqrt eps) (max (rows m) (cols m)) (toList s), s)
+                -- (rank m, sv m) where sv m = s where (_,s,_) = svd m
 
 
 ttake ns t = (foldl1' (.) $ zipWith (onIndex.take) ns (names t)) t
 
--- | Truncate a hosvd decomposition from the desired number of principal components in each dimension.
+-- | Truncate a 'hosvd' decomposition from the desired number of principal components in each dimension.
 truncateFactors :: [Int] -> [Array Double] -> [Array Double]
 truncateFactors _ [] = []
 truncateFactors ns (c:rs) = ttake ns c : zipWith f rs ns
@@ -83,7 +100,7 @@ unitRows (c:as) = foldl1' (.*) (c:xs) : as' where
         where n = head (names a) -- hmmm
               rs = parts a n
               scs = map frobT rs
-              x = diagT scs (order c) `rename` (names c)
+              x = diagT scs (order c) `renameRaw` (names c)
               a' = (zipWith (.*) (map (scalar.recip) scs)) `onIndex` n $ a
 
 
@@ -93,7 +110,8 @@ For example, a rank 3 approximation can be obtained as follows, where initializa
 is based on the hosvd:
 
 @
-(y,errs) = cpRun (cpInitSvd (fst $ hosvd t) 3) 0.01 1E-6 t
+(y,errs) = cpRank 3 t
+     where cpRank r t = cpRun (cpInitSvd (fst $ hosvd' t) r) defaultParameters t
 @
 
 -}
@@ -114,9 +132,9 @@ cpRun s0 params t = (unitRows $ head s0 : sol, errs) where
     Practical usage can be based on something like this:
 
 @
-cp finit delta epsilon t = cpAuto (finit t) delta epsilon t
+cp finit d e t = cpAuto (finit t) defaultParameters {delta = d, epsilon = e} t
 
-cpS = cp (InitSvd . fst . hosvd)
+cpS = cp (InitSvd . fst . hosvd')
 cpR s = cp (cpInitRandom s)
 @
 
@@ -147,16 +165,16 @@ cpInitSvd :: [NArray None Double] -- ^ hosvd decomposition of the target array
 cpInitSvd (hos) k = d:as
     where c:rs = hos
           as = trunc (replicate (order c) k) rs
-          d = diagT (replicate k 1) (order c) `rename` (names c)
+          d = diagT (replicate k 1) (order c) `renameRaw` (names c)
           trunc ns xs = zipWith f xs ns
               where f r n = onIndex (take n . cycle) (head (names r)) r
 
 cpInitSeq rs t k = ones:as where
     auxIndx = take (order t) $ map return ['a'..] \\ names t
-    ones = diagT (replicate k 1) (order t) `rename` auxIndx
+    ones = diagT (replicate k 1) (order t) `renameRaw` auxIndx
     ts = takes (map (*k) (sizes t)) rs
     as = zipWith4 f ts auxIndx (names t) (sizes t)
-    f c n1 n2 p = (listArray [k,p] c) `rename` [n1,n2]
+    f c n1 n2 p = (listArray [k,p] c) `renameRaw` [n1,n2]
 
 takes [] _ = []
 takes (n:ns) xs = take n xs : takes ns (drop n xs)

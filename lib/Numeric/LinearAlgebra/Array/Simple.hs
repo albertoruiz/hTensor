@@ -23,14 +23,15 @@ module Numeric.LinearAlgebra.Array.Simple (
 
 import Numeric.LinearAlgebra.Array.Internal
 import Data.Packed
+import Data.List(intersperse)
 
 
 instance Show (Idx None) where
-    show (Idx _t n s) = show n ++ ":" ++ s
+    show (Idx _t n s) = s ++ ":" ++ show n
 
 -- | Unespecified coordinate type. Contractions only
 -- require equal dimension.
-data None = None deriving (Eq,Ord,Show)
+data None = None deriving (Eq,Show)
 
 
 instance Compat None where
@@ -43,7 +44,12 @@ type Array t = NArray None t
 
 instance (Coord t) => Show (Array t) where
     show t | null (dims t) = "scalar "++ show (coords t @>0)
-           | otherwise = "listArray "++ show (dims t) ++ " "++ show (toList $ coords t)
+           | order t == 1 = "index " ++ show n ++" " ++ (show . toList . coords $ t)
+           | otherwise = "index "++ show n ++ " [" ++ ps ++ "]"
+      where n = head (names t)
+            ps = concat $ intersperse ", " $ map show (parts t n)
+
+-- ++ " "++ show (toList $ coords t)
 
 -- | Construction of an 'Array' from a list of dimensions and a list of elements in left to right order.
 listArray :: (Coord t)

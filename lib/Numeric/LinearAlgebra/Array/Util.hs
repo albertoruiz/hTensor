@@ -19,7 +19,7 @@ module Numeric.LinearAlgebra.Array.Util (
     scalar,
     order, names, size, sizes, typeOf, dims, coords,
 
-    rename, (!), renameExplicit, (>@>), (!>),
+    renameRaw, (!!!), renameExplicit, (!>), renameO, (!),
 
     parts,
     newIndex,
@@ -66,25 +66,34 @@ diagT v n = replicate n k `listArray` concat (intersperse z (map return v))
 -- | Explicit renaming of single letter index names.
 --
 -- For instance, @t >\@> \"pi qj\"@ changes index \"p\" to \"i\" and \"q\" to \"j\".
-(>@>) :: (Compat i, Coord t) => NArray i t -> [Char] -> NArray i t
-infixl 9 >@>
-t >@> s = renameExplicit (map (\[a,b]->([a],[b])) (words s)) t
-
-
--- | Rename the ordered dimensions of an array (contravariant < covariant), using single letter names.
 (!>) :: (Compat i, Coord t) => NArray i t -> [Char] -> NArray i t
 infixl 9 !>
-t !> s = renameExplicit (zip od (map return s)) t
+t !> s = renameExplicit (map (\[a,b]->([a],[b])) (words s)) t
+
+
+-- | Rename indices in alphabetical order. Equal indices of compatible type are contracted out.
+renameO :: (Coord t, Compat i)
+    => NArray i t
+    -> [Name]
+    -> NArray i t
+renameO t ns = renameExplicit (zip od ns) t
     where od = map iName (sort (dims t))
 
 
--- | 'rename' the indices (in the internal order) with single-letter names. Equal indices of compatible type are contracted out.
-infixl 8 !
-(!) :: (Coord t, Compat i)
+-- | Rename indices in alphabetical order ('renameO') using single letter names.
+(!) :: (Compat i, Coord t) => NArray i t -> [Char] -> NArray i t
+infixl 9 !
+t ! s = renameExplicit (zip od (map return s)) t
+    where od = map iName (sort (dims t))
+
+
+-- | 'renameRaw' the indices (in the internal order) with single-letter names. Equal indices of compatible type are contracted out.
+infixl 8 !!!
+(!!!) :: (Coord t, Compat i)
        => NArray i t
        -> String   -- ^ new indices
        -> NArray i t
-t ! ns = rename t (map return ns)
+t !!! ns = renameRaw t (map return ns)
 
 
 -- | 'reorder' (transpose) dimensions of the array (with single letter names).
@@ -123,17 +132,18 @@ setType n t a = mapDims f a where
     f i | iName i == n = i {iType = t}
         | otherwise    = i
 
--- | Extract the 'parts' of an array, and rename one of the remaining indices
+-- | Extract the 'parts' of an array, and renameRaw one of the remaining indices
 -- with succesive integers.
 renameParts :: (Compat i, Coord t)
             => Name         -- ^ index of the parts to extract
             -> NArray i t   -- ^ input array
-            -> Name         -- ^ index to rename
+            -> Name         -- ^ index to renameRaw
             -> String       -- ^ prefix for the new names
             -> [NArray i t] -- ^ list or results
 renameParts p t x pre = zipWith renameExplicit [[(x,pre ++ show k)] | k<-[1::Int ..] ] (parts t p)
 
 
 applyAsMatrix :: (Coord t, Compat i) => (Matrix t -> Matrix t) -> (NArray i t -> NArray i t)
-applyAsMatrix f t = flip rename (names t) . fromMatrix r c . f . asMatrix $ t where
-   [r,c] = map (flip typeOf t) (names t)
+applyAsMatrix f t = flip renameRaw nms . fromMatrix r c . f . asMatrix $ t
+    where [r,c] = map (flip typeOf t) nms
+          nms = sort . names $ t

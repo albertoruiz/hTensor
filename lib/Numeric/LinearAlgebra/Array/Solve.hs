@@ -105,11 +105,13 @@ solveP' g a b h = mapTat (solveP1 g h a) (names b \\ (h:names a)) b
 -- solveP for a single right hand side
 solveP1 g nh a b = solveHomog1' g ou ns where
     k = size nh b
-    epsi = cov $ leviCivita k `renameRaw` (nh : (take (k-1) $ (map (('e':).(:[])) ['2'..])))
+    epsi = t $ leviCivita k `renameRaw` (nh : (take (k-1) $ (map (('e':).(:[])) ['2'..])))
     ou = a .* b' * epsi
     ns = (names a \\ names b) ++ x
     b' = renameExplicit [(nh,"e2")] b
     x = if nh `elem` (names a) then [] else [nh]
+    t = if typeOf nh b == Co then contrav else cov
+        -- mapTypes (const (opos $ typeOf nh b))
 
 -----------------------------------------------------------------------
 

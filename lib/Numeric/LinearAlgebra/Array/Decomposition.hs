@@ -22,6 +22,7 @@ module Numeric.LinearAlgebra.Array.Decomposition (
 ) where
 
 import Numeric.LinearAlgebra.Array
+import Numeric.LinearAlgebra.Array.Internal(seqIdx)
 import Numeric.LinearAlgebra.Array.Util
 import Numeric.LinearAlgebra.Array.Solve
 import Numeric.LinearAlgebra hiding ((.*))
@@ -38,13 +39,13 @@ import System.Random
     to give some idea about core structure.
 -}
 hosvd' :: Array Double -> ([Array Double],[(Int,Vector Double)])
-hosvd' t = (factors,ss)
-    where factors = core!!!(map head dummies) : zipWith (!!!) (map (fromMatrix None None . trans) rs) axs
-          (rs,ss) = unzip $ map usOfSVD $ flats t
-          n = length rs
-          dummies = take n $ map return ['a'..'z'] \\ names t
-          axs = zipWith (++) dummies (names t)
-          core = product $ t!!!(map head dummies) : zipWith (!!!) (map (fromMatrix None None) rs) axs
+hosvd' t = (factors,ss) where
+    (rs,ss) = unzip $ map usOfSVD $ flats t
+    n = length rs
+    dummies = take n $ seqIdx (2*n) "" \\ names t
+    axs = zipWith (\a b->[a,b]) dummies (names t)
+    factors = renameO core dummies : zipWith renameO (map (fromMatrix None None . trans) rs) axs
+    core = product $ renameO t dummies : zipWith renameO (map (fromMatrix None None) rs) axs
 
 {- | Multilinear Singular Value Decomposition (or Tucker's method, see Lathauwer et al.).
 
@@ -63,7 +64,7 @@ hosvd a = truncateFactors rs h where
 
 
 -- get the matrices of the flattened tensor for all dimensions
-flats t = map (flip fibers t) (names t)
+flats t = map (flip fibers t) (sort $ names t)
 
 
 --check trans/ctrans
@@ -100,7 +101,7 @@ unitRows (c:as) = foldl1' (.*) (c:xs) : as' where
         where n = head (names a) -- hmmm
               rs = parts a n
               scs = map frobT rs
-              x = diagT scs (order c) `renameRaw` (names c)
+              x = diagT scs (order c) `renameO` (names c)
               a' = (zipWith (.*) (map (scalar.recip) scs)) `onIndex` n $ a
 
 
@@ -165,16 +166,16 @@ cpInitSvd :: [NArray None Double] -- ^ hosvd decomposition of the target array
 cpInitSvd (hos) k = d:as
     where c:rs = hos
           as = trunc (replicate (order c) k) rs
-          d = diagT (replicate k 1) (order c) `renameRaw` (names c)
+          d = diagT (replicate k 1) (order c) `renameO` (names c)
           trunc ns xs = zipWith f xs ns
               where f r n = onIndex (take n . cycle) (head (names r)) r
 
 cpInitSeq rs t k = ones:as where
     auxIndx = take (order t) $ map return ['a'..] \\ names t
-    ones = diagT (replicate k 1) (order t) `renameRaw` auxIndx
+    ones = diagT (replicate k 1) (order t) `renameO` auxIndx
     ts = takes (map (*k) (sizes t)) rs
     as = zipWith4 f ts auxIndx (names t) (sizes t)
-    f c n1 n2 p = (listArray [k,p] c) `renameRaw` [n1,n2]
+    f c n1 n2 p = (listArray [k,p] c) `renameO` [n1,n2]
 
 takes [] _ = []
 takes (n:ns) xs = take n xs : takes ns (drop n xs)

@@ -105,7 +105,7 @@ solveP' g a b h = mapTat (solveP1 g h a) (names b \\ (h:names a)) b
 -- solveP for a single right hand side
 solveP1 g nh a b = solveHomog1' g ou ns where
     k = size nh b
-    epsi = t $ leviCivita k `renameRaw` (nh : (take (k-1) $ (map (('e':).(:[])) ['2'..])))
+    epsi = t $ leviCivita k `renameO` (nh : (take (k-1) $ (map (('e':).(:[])) ['2'..])))
     ou = a .* b' * epsi
     ns = (names a \\ names b) ++ x
     b' = renameExplicit [(nh,"e2")] b
@@ -254,7 +254,7 @@ initFactorsSeq rs a pairs b | ok = as
     na = map iDim da
     ts = takes (zipWith (*) nb na) rs
     as = zipWith5 f ts ib ia db da
-    f c i1 i2 d1 d2 = (mkNArray [d1,opos d2] (fromList c)) `renameRaw` [i1,i2]
+    f c i1 i2 d1 d2 = (mkNArray [d1,opos d2] (fromList c)) `renameO` [i1,i2]
 
 initFactorsRandom seed a b = initFactorsSeq (randomRs (-1,1) (mkStdGen seed)) a b
 
@@ -279,7 +279,7 @@ initFactorsHSeq rs a pairs = as where
     nt = map (flip size a) it
     ts = takes (zipWith (*) nr nt) rs
     as = zipWith5 f ts ir it (selDims (dims a) ir) (selDims (dims a) it)
-    f c i1 i2 d1 d2 = (mkNArray (map opos [d1,d2]) (fromList c)) `renameRaw` [i1,i2]
+    f c i1 i2 d1 d2 = (mkNArray (map opos [d1,d2]) (fromList c)) `renameO` [i1,i2]
 
 initFactorsHRandom seed a pairs = initFactorsHSeq (randomRs (-1,1) (mkStdGen seed)) a pairs
 

@@ -19,7 +19,7 @@ module Numeric.LinearAlgebra.Array.Util (
     scalar,
     order, names, size, sizes, typeOf, dims, coords,
 
-    renameRaw, (!!!), renameExplicit, (!>), renameO, (!),
+    renameExplicit, (!>), renameO, (!),
 
     parts,
     newIndex,
@@ -87,13 +87,13 @@ t ! s = renameExplicit (zip od (map return s)) t
     where od = map iName (sort (dims t))
 
 
--- | 'renameRaw' the indices (in the internal order) with single-letter names. Equal indices of compatible type are contracted out.
-infixl 8 !!!
-(!!!) :: (Coord t, Compat i)
-       => NArray i t
-       -> String   -- ^ new indices
-       -> NArray i t
-t !!! ns = renameRaw t (map return ns)
+-- -- | 'renameRaw' the indices (in the internal order) with single-letter names. Equal indices of compatible type are contracted out.
+-- infixl 8 !!!
+-- (!!!) :: (Coord t, Compat i)
+--        => NArray i t
+--        -> String   -- ^ new indices
+--        -> NArray i t
+-- t !!! ns = renameRaw t (map return ns)
 
 
 -- | 'reorder' (transpose) dimensions of the array (with single letter names).

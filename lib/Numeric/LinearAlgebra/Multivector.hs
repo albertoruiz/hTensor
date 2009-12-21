@@ -229,7 +229,7 @@ tmv k x = listTensor [2^k] (expand k x)
 
 mat rowidx t = reshape c $ Array.coords t'
     where c = iDim $ last (dims t')
-          t' = reorder (rowidx: (names t\\[rowidx])) t
+          t' = reorder (rowidx: (namesR t\\[rowidx])) t
 
 -- on the right
 pmat k b = mat "k" $ g!"ijk" * tb!"j"

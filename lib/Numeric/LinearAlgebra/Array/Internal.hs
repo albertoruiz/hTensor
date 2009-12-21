@@ -24,7 +24,7 @@
 module Numeric.LinearAlgebra.Array.Internal (
     -- * Data structures
     NArray, Idx(..), Name,
-    order, names, size, sizes, typeOf , dims, coords,
+    order, namesR, names, size, sizesR, sizes, typeOf , dims, coords,
     Compat(..),
     -- * Array creation
     scalar,
@@ -132,18 +132,25 @@ mapNames f = mapDims (\i -> i {iName = f (iName i)})
 renameExplicit :: (Compat i, Coord t) => [(Name,Name)] -> NArray i t -> NArray i t
 renameExplicit al = g . mapNames f where
     f n = maybe n id (lookup n al)
-    g t = reorder orig (contract t) where orig = nub (names t) \\ common1 t
+    g t = reorder orig (contract t) where orig = nub (namesR t) \\ common1 t
+
+-- | Index names (in internal order).
+namesR :: NArray i t -> [Name]
+namesR = map iName . dims
 
 -- | Index names.
 names :: NArray i t -> [Name]
-names = map iName . dims
+names = sort . namesR
 
 -- | Dimension of given index.
 size :: Name -> NArray i t -> Int
 size n t = (iDim . head) (filter ((n==).iName) (dims t))
 
-sizes:: NArray i t -> [Int]
-sizes = map iDim . dims
+sizesR :: NArray i t -> [Int]
+sizesR = map iDim . dims
+
+sizes :: NArray i t -> [Int]
+sizes t = map (flip size t) (names t)
 
 -- | Type of given index.
 typeOf :: Compat i => Name -> NArray i t -> i
@@ -158,7 +165,7 @@ selDims ds = map f where
 
 ----------------------------------------------------------
 
-common2 t1 t2 = [ n1 | n1 <- names t1, n2 <- names t2, n1==n2]
+common2 t1 t2 = [ n1 | n1 <- namesR t1, n2 <- namesR t2, n1==n2]
 
 analyzeProduct :: (Coord t, Compat i) => NArray i t -> NArray i t -> Maybe (NArray i t, Int)
 analyzeProduct a b = r where
@@ -225,9 +232,9 @@ parts :: (Coord t)
       => NArray i t
       -> Name        -- ^ index to expand
       -> [NArray i t]
-parts a name | name `elem` (names a) = map (reorder orig) (partsRaw a name)
-             | otherwise = error $ "parts: " ++ show name ++ " is not a dimension of "++(show $ names a)
-    where orig = names a \\ [name]
+parts a name | name `elem` (namesR a) = map (reorder orig) (partsRaw a name)
+             | otherwise = error $ "parts: " ++ show name ++ " is not a dimension of "++(show $ namesR a)
+    where orig = namesR a \\ [name]
 
 partsRaw a name = map f (toRows m)
     where (_:ds,m) = firstIdx name a
@@ -245,10 +252,10 @@ tridx (name:rest) t = A (d:ds) (join ts) where
 -- | Change the internal layout of coordinates.
 -- The array, considered as an abstract object, does not change.
 reorder :: (Coord t) => [Name] -> NArray i t -> NArray i t
-reorder ns b | ns == names b = b
-             | sort ns == sort (names b) = tridx ns b
+reorder ns b | ns == namesR b = b
+             | sort ns == sort (namesR b) = tridx ns b
              | otherwise = error $ "wrong index sequence " ++ show ns
-                                    ++ " to reorder "++(show $ names b)
+                                    ++ " to reorder "++(show $ namesR b)
 
 ----------------------------------------------------------------------
 
@@ -286,10 +293,10 @@ contract1c t n = contract1 renamed n n'
     where n' = " "++n++" " -- forbid spaces in names...
           renamed = renameSuperRaw (t) auxnames
           auxnames = h ++ (n':r)
-          (h,_:r) = break (==n) (names t)
+          (h,_:r) = break (==n) (namesR t)
 
 common1 t = [ n1 | (a,n1) <- x , (b,n2) <- x, a>b, n1==n2]
-    where x = zip [0 ::Int ..] (names t)
+    where x = zip [0 ::Int ..] (namesR t)
 
 contract t = foldl' contract1c t (common1 t)
 
@@ -361,8 +368,8 @@ common f = commonval . map f where
 asMatrix :: (Coord t) => NArray i t -> Matrix t
 asMatrix a | order a == 2 = reshape c (coords a')
            | otherwise = error $ "asMatrix requires a 2nd order array."
-    where c = size (last (names a')) a'
-          a' = reorder (sort (names a)) a
+    where c = size (last (namesR a')) a'
+          a' = reorder (sort (namesR a)) a
 
 -- | Extract the 'Vector' corresponding to a one-dimensional array.
 asVector :: (Coord t) => NArray i t -> Vector t
@@ -393,7 +400,7 @@ extract :: (Compat i, Coord t)
         -> Name
         -> NArray i t
         -> NArray i t
-extract f name arr = reorder (names arr)
+extract f name arr = reorder (namesR arr)
                    . newIndex (typeOf name arr) name
                    . map snd . filter (uncurry f)
                    $ zip [1..] (parts arr name)
@@ -405,8 +412,8 @@ onIndex :: (Coord a, Coord b, Compat i) =>
      -> NArray i a
      -> NArray i b
 onIndex f name t = r where
-     r = if sort (names x) == sort (names t)
-            then reorder (names t) x
+     r = if sort (namesR x) == sort (namesR t)
+            then reorder (namesR t) x
             else x
      x = newIndex (typeOf name t) name (f (parts t name))
 
@@ -445,14 +452,14 @@ makeConformantT (t1,t2) =
 
 takeDiagT :: (Compat i, Coord t) => NArray i t -> [t]
 takeDiagT t = map (asScalar . atT t) cds where
-    n = minimum (sizes t)
+    n = minimum (sizesR t)
     o = order t
     cds = map (replicate o) [0..n-1]
 
 atT :: (Compat i, Coord t) => NArray i t -> [Int] -> NArray i t
 atT t c = atT' c t where
     atT' cs = foldl1' (.) (map fpart cs)
-    fpart k q = parts q (head (names q)) !! k
+    fpart k q = parts q (head (namesR q)) !! k
 
 ----------------------------------------------
 

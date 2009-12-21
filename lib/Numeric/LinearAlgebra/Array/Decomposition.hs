@@ -22,7 +22,7 @@ module Numeric.LinearAlgebra.Array.Decomposition (
 ) where
 
 import Numeric.LinearAlgebra.Array
-import Numeric.LinearAlgebra.Array.Internal(seqIdx)
+import Numeric.LinearAlgebra.Array.Internal(seqIdx,namesR,sizesR,renameRaw)
 import Numeric.LinearAlgebra.Array.Util
 import Numeric.LinearAlgebra.Array.Solve
 import Numeric.LinearAlgebra hiding ((.*))
@@ -42,10 +42,10 @@ hosvd' :: Array Double -> ([Array Double],[(Int,Vector Double)])
 hosvd' t = (factors,ss) where
     (rs,ss) = unzip $ map usOfSVD $ flats t
     n = length rs
-    dummies = take n $ seqIdx (2*n) "" \\ (names t)
-    axs = zipWith (\a b->[a,b]) dummies (names t)
-    factors = renameO core dummies : zipWith renameO (map (fromMatrix None None . trans) rs) axs
-    core = product $ renameO t dummies : zipWith renameO (map (fromMatrix None None) rs) axs
+    dummies = take n $ seqIdx (2*n) "" \\ (namesR t)
+    axs = zipWith (\a b->[a,b]) dummies (namesR t)
+    factors = renameRaw core dummies : zipWith renameRaw (map (fromMatrix None None . trans) rs) axs
+    core = product $ renameRaw t dummies : zipWith renameRaw (map (fromMatrix None None) rs) axs
 
 {- | Multilinear Singular Value Decomposition (or Tucker's method, see Lathauwer et al.).
 
@@ -64,7 +64,7 @@ hosvd a = truncateFactors rs h where
 
 
 -- get the matrices of the flattened tensor for all dimensions
-flats t = map (flip fibers t) (sort $ names t)
+flats t = map (flip fibers t) (namesR t)
 
 
 --check trans/ctrans
@@ -80,13 +80,13 @@ usOfSVD m = if rows m < cols m
                 -- (rank m, sv m) where sv m = s where (_,s,_) = svd m
 
 
-ttake ns t = (foldl1' (.) $ zipWith (onIndex.take) ns (names t)) t
+ttake ns t = (foldl1' (.) $ zipWith (onIndex.take) ns (namesR t)) t
 
 -- | Truncate a 'hosvd' decomposition from the desired number of principal components in each dimension.
 truncateFactors :: [Int] -> [Array Double] -> [Array Double]
 truncateFactors _ [] = []
 truncateFactors ns (c:rs) = ttake ns c : zipWith f rs ns
-    where f r n = onIndex (take n) (head (names r)) r
+    where f r n = onIndex (take n) (head (namesR r)) r
 
 ------------------------------------------------------------------------
 
@@ -98,10 +98,10 @@ unitRows [] = error "unitRows []"
 unitRows (c:as) = foldl1' (.*) (c:xs) : as' where
     (xs,as') = unzip (map g as)
     g a = (x,a')
-        where n = head (names a) -- hmmm
+        where n = head (namesR a) -- hmmm
               rs = parts a n
               scs = map frobT rs
-              x = diagT scs (order c) `renameO` (sort $ names c)
+              x = diagT scs (order c) `renameRaw` (namesR c)
               a' = (zipWith (.*) (map (scalar.recip) scs)) `onIndex` n $ a
 
 
@@ -166,17 +166,17 @@ cpInitSvd :: [NArray None Double] -- ^ hosvd decomposition of the target array
 cpInitSvd (hos) k = d:as
     where c:rs = hos
           as = trunc (replicate (order c) k) rs
-          d = diagT (replicate k 1) (order c) `renameO` (names c)
+          d = diagT (replicate k 1) (order c) `renameO` (namesR c)
           trunc ns xs = zipWith f xs ns
-              where f r n = onIndex (take n . cycle) (head (names r)) r
+              where f r n = onIndex (take n . cycle) (head (namesR r)) r
 
 cpInitSeq rs t k = ones:as where
     n = order t
-    auxIndx = take n $ seqIdx (2*n) "cp" \\ names t
-              --take (order t) $ map return ['a'..] \\ names t
+    auxIndx = take n $ seqIdx (2*n) "" \\ namesR t
+              --take (order t) $ map return ['a'..] \\ namesR t
     ones = diagT (replicate k 1) (order t) `renameO` auxIndx
-    ts = takes (map (*k) (sizes t)) rs
-    as = zipWith4 f ts auxIndx (names t) (sizes t)
+    ts = takes (map (*k) (sizesR t)) rs
+    as = zipWith4 f ts auxIndx (namesR t) (sizesR t)
     f c n1 n2 p = (listArray [k,p] c) `renameO` [n1,n2]
 
 takes [] _ = []

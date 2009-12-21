@@ -28,6 +28,7 @@ module Numeric.LinearAlgebra.Array (
 
 import Numeric.LinearAlgebra.Array.Simple
 import Numeric.LinearAlgebra.Array.Util
+import Numeric.LinearAlgebra.Array.Internal(namesR)
 import Numeric.LinearAlgebra.Array.Display(printA)
 import Data.Packed(Vector)
 
@@ -42,7 +43,7 @@ infixl 7 .*
 (.*) = zipArray (*)
 
 instance (Coord t, Compat i) => Eq (NArray i t) where
-    t1 == t2 = sameStructure t1 t2 && coords t1 == coords (reorder (names t1) t2)
+    t1 == t2 = sameStructure t1 t2 && coords t1 == coords (reorder (namesR t1) t2)
 
 instance (Show (NArray i t), Coord t, Compat i) => Num (NArray i t) where
     (+) = zipArray (+)

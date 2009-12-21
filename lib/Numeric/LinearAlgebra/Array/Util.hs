@@ -146,4 +146,4 @@ renameParts p t x pre = zipWith renameExplicit [[(x,pre ++ show k)] | k<-[1::Int
 applyAsMatrix :: (Coord t, Compat i) => (Matrix t -> Matrix t) -> (NArray i t -> NArray i t)
 applyAsMatrix f t = flip renameRaw nms . fromMatrix r c . f . asMatrix $ t
     where [r,c] = map (flip typeOf t) nms
-          nms = sort . names $ t
+          nms = sort . namesR $ t

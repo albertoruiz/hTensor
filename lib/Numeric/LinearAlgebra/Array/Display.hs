@@ -75,13 +75,13 @@ formatAux f x = unlines . addds . els . fmt ms $ x where
         | order t == 1 =  rect $ unwords $ map f (toList $ coords t)
         | order t == 2 =  decor t $ rect $ w1 $ format " " f (reshape (iDim $ last $ dims t) (coords t))
         | otherwise    = decor t (g ps)
-      where ps = map (fmt gs ) (partsRaw t (head (names t)))
+      where ps = map (fmt gs ) (partsRaw t (head (namesR t)))
     ds = showNice (filter ((/='*').head.iName) $ dims x)
     addds = if null ds then (showRawDims (dims x) :) else (ds:)
     w1 = unlines . map (' ':) . lines
     ms = cycle [dispV 1, dispH 2]
     decor t | odd (order t) = id
-            | otherwise = decorLeft  (names t!!0) . decorUp (names t!!1)
+            | otherwise = decorLeft  (namesR t!!0) . decorUp (namesR t!!1)
 
 
 showNice x = unwords . intersperse "x" . map show $ x
@@ -167,4 +167,4 @@ dummyAt k t = mkNArray d' (coords t) where
 
 -- | Rename indices so that they are not shown in formatted output.
 noIdx :: Compat i => NArray i t -> NArray i t
-noIdx t = renameSuperRaw t (map ('*':) (names t))
+noIdx t = renameSuperRaw t (map ('*':) (namesR t))

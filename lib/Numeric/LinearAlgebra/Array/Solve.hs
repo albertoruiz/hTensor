@@ -30,7 +30,7 @@ module Numeric.LinearAlgebra.Array.Solve (
 
 import Numeric.LinearAlgebra.Array.Util
 import Numeric.LinearAlgebra.Exterior
-import Numeric.LinearAlgebra.Array.Internal(mkNArray, selDims, debug)
+import Numeric.LinearAlgebra.Array.Internal(mkNArray, selDims, debug, namesR)
 import Numeric.LinearAlgebra hiding ((.*))
 import Data.List
 import System.Random
@@ -46,9 +46,9 @@ solve :: (Compat i, Coord t)
 solve = solve' id
 
 solve' g a b = x where
-    nx = names a \\ names b
-    na = names a \\ nx
-    nb = names b \\ names a
+    nx = namesR a \\ namesR b
+    na = namesR a \\ nx
+    nb = namesR b \\ namesR a
     aM = g $ matrixator a na nx
     bM = matrixator b na nb
     xM = linearSolveSVD aM bM
@@ -69,8 +69,8 @@ solveHomog :: (Compat i, Coord t)
 solveHomog = solveHomog' id
 
 solveHomog' g a nx' hint = xs where
-    nx = filter (`elem` (names a)) nx'
-    na = names a \\ nx
+    nx = filter (`elem` (namesR a)) nx'
+    na = namesR a \\ nx
     aM = g $ matrixator a na nx
     vs = nullspaceSVD hint aM (svd aM)
     dx = map opos (selDims (dims a) nx)
@@ -100,16 +100,16 @@ solveP :: Tensor Double   -- ^ coefficients (a)
        -> Tensor Double   -- ^ result (x)
 solveP = solveP' id
 
-solveP' g a b h = mapTat (solveP1 g h a) (names b \\ (h:names a)) b
+solveP' g a b h = mapTat (solveP1 g h a) (namesR b \\ (h:namesR a)) b
 
 -- solveP for a single right hand side
 solveP1 g nh a b = solveHomog1' g ou ns where
     k = size nh b
     epsi = t $ leviCivita k `renameO` (nh : (take (k-1) $ (map (('e':).(:[])) ['2'..])))
     ou = a .* b' * epsi
-    ns = (names a \\ names b) ++ x
+    ns = (namesR a \\ namesR b) ++ x
     b' = renameExplicit [(nh,"e2")] b
-    x = if nh `elem` (names a) then [] else [nh]
+    x = if nh `elem` (namesR a) then [] else [nh]
     t = if typeOf nh b == Co then contrav else cov
         -- mapTypes (const (opos $ typeOf nh b))
 
@@ -150,7 +150,7 @@ percent t s = 100 * frobT (t - smartProduct s) / frobT t
 percentP h t s = 100 * frobT (t' - s') / frobT t' where
     t' = f t
     s' = f (smartProduct s)
-    f = mapTat g (names t \\ [h])
+    f = mapTat g (namesR t \\ [h])
     g v = v / atT v [n]
     n = size h t - 1
 
@@ -203,7 +203,7 @@ mlSolveH params a x0
 alsArgH _ _ _ [] = error "alsArgH _ _ []"
 alsArgH params a k xs = sol where
     p = smartProduct (a ++ dropElemPos k xs)
-    x = solveHomog1' (presys params) p (names (xs!!k))
+    x = solveHomog1' (presys params) p (namesR (xs!!k))
     x' = postk params k x
     sol = replaceElemPos k x' xs
 
@@ -246,8 +246,8 @@ initFactorsSeq rs a pairs b | ok = as
                             | otherwise = error "solveFactors index pairs"
   where
     (ia,ib) = unzip (map (\[x,y]->([x],[y])) (words pairs))
-    ic = intersect (names a) (names b)
-    ok = sort (names b\\ic) == sort ib && sort (names a\\ic) == sort ia
+    ic = intersect (namesR a) (namesR b)
+    ok = sort (namesR b\\ic) == sort ib && sort (namesR a\\ic) == sort ia
     db = selDims (dims b) ib
     da = selDims (dims a) ia
     nb = map iDim db

@@ -51,7 +51,7 @@ gsym f t = mkNArray (dims t) (coords $ sum ts) where
 -- symmetrize t = gsym id t
 
 antisymmetrize t = gsym scsig t
-    where scsig x = scalar (signature (names x)) * x
+    where scsig x = scalar (signature (namesR x)) * x
 
 fact n = product [1..n]
 

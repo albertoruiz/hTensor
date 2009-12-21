@@ -47,7 +47,7 @@ instance (Coord t) => Show (Tensor t) where
     show t | null (dims t) = "scalar "++ show (coords t @>0)
            | order t == 1 = ixn ++ show n ++" " ++ (show . toList . coords $ t)
            | otherwise = ixn ++ show n ++ " [" ++ ps ++ "]"
-      where n = head (names t)
+      where n = head (namesR t)
             ps = concat $ intersperse ", " $ map show (parts t n)
             ixn = idxn (typeOf n t)
             idxn Co     = "subindex "

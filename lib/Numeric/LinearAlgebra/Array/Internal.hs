@@ -53,7 +53,7 @@ module Numeric.LinearAlgebra.Array.Internal (
     common,
     selDims, mapDims,
     takeDiagT, atT,
-    firstIdx, fibers, matrixator,
+    firstIdx, fibers, matrixator, matrixatorFree,
     Coord,
     asMatrix, asVector, asScalar,
     debug
@@ -107,23 +107,18 @@ mkNArray dms vec = A dms v where
 scalar :: Coord t => t -> NArray i t
 scalar x = A [] (fromList [x])
 
-
-
-
 -- | Rename indices (in the internal order). Equal indices are contracted out.
 renameRaw :: (Coord t, Compat i)
        => NArray i t
        -> [Name]     -- ^ new names
        -> NArray i t
-renameRaw t ns = reorder orig (contract t')
-    where t' = renameSuperRaw t ns
-          orig = nub (names t') \\ common1 t'
+renameRaw t ns = contract (renameSuperRaw t ns)
 
-
-renameSuperRaw (A d v) l | length l == length d = A d' v
-                    | otherwise = error $ "renameRaw " ++ show d ++ " with " ++ show l
-    where d' = zipWith f d l
-          f i n = i {iName=n}
+renameSuperRaw (A d v) l
+    | length l == length d = A d' v
+    | otherwise = error $ "renameRaw " ++ show d ++ " with " ++ show l
+   where d' = zipWith f d l
+         f i n = i {iName=n}
 
 mapDims f (A d v) = A (map f d) v
 
@@ -154,7 +149,6 @@ sizes = map iDim . dims
 typeOf :: Compat i => Name -> NArray i t -> i
 typeOf n t = (iType . head) (filter ((n==).iName) (dims t))
 
-
 -- | The number of dimensions of a multidimensional array.
 order :: NArray i t -> Int
 order = length . dims
@@ -169,22 +163,19 @@ common2 t1 t2 = [ n1 | n1 <- names t1, n2 <- names t2, n1==n2]
 analyzeProduct :: (Coord t, Compat i) => NArray i t -> NArray i t -> Maybe (NArray i t, Int)
 analyzeProduct a b = r where
     nx  = common2 a b
-    na  = names a \\ nx
-    nb  = names b \\ nx
     dx1 = selDims (dims a) nx
     dx2 = selDims (dims b) nx
     ok  = and $ zipWith compat dx1 dx2
+    (tma,na) = matrixatorFree a nx
+    (mb,nb)  = matrixatorFree b nx
+    mc  = trans tma <> mb
     da  = selDims (dims a) na
     db  = selDims (dims b) nb
-    ma  = matrixator a na nx
-    mb  = matrixator b nx nb
-    mc  = ma <> mb
     dc  = da ++ db
     c   = A dc (flatten mc)
     sz  = product (map iDim dc)
     r | ok = Just (c, sz)
       | otherwise = Nothing
-
 
 infixl 5 |*|
 -- | Tensor product with automatic contraction of repeated indices, following Einstein summation convention.
@@ -217,6 +208,16 @@ matrixator :: (Coord t) => NArray i t -- ^ input array
                         -> Matrix t   -- ^ result
 matrixator t nr nc = reshape s (coords q) where
     q = reorder (nr++nc) t
+    s = product (map (flip size t) nc)
+
+-- | Reshapes an array as a matrix with the desired dimensions as flattened rows and flattened columns. We do not force the order of the columns.
+matrixatorFree :: (Coord t)
+               => NArray i t          -- ^ input array
+               -> [Name]              -- ^ row dimensions
+               -> (Matrix t, [Name])  -- ^ (result, column dimensions)
+matrixatorFree t nr = (reshape s (coords q), nc) where
+    q = tridx nr t
+    nc = drop (length nr) (map iName (dims q))
     s = product (map (flip size t) nc)
 
 -- | Create a list of the substructures at the given level.
@@ -460,14 +461,10 @@ atT t c = atT' c t where
 -- | This is equivalent to the regular 'product', but in the order that minimizes the size of the
 -- intermediate factors.
 smartProduct :: (Coord t, Compat i, Num (NArray i t)) => [NArray i t] -> NArray i t
-smartProduct ts = reorder ns r where
-    r = smartProduct' ts
-    ns = filter (`elem` names r) (concatMap names ts)
-
-smartProduct' [] = 1
-smartProduct' [a] = a
-smartProduct' [a,b] = a*b
-smartProduct' ts = r where
+smartProduct [] = 1
+smartProduct [a] = a
+smartProduct [a,b] = a*b
+smartProduct ts = r where
     n = length ts
     ks = [0 .. n-1]
     xs = zip ks ts
@@ -476,7 +473,7 @@ smartProduct' ts = r where
               Just (_,c) -> c
     pairs = [ ((i,j), g a b) | (i,a) <- init xs, (j,b) <- drop (i+1) xs ]
     (p,q) = fst $ minimumBy (compare `on` snd) pairs
-    r = smartProduct' (ts!!p * ts!!q : (dropElemPos p . dropElemPos q) ts)
+    r = smartProduct (ts!!p * ts!!q : (dropElemPos p . dropElemPos q) ts)
 
 dropElemPos k xs = take k xs ++ drop (k+1) xs
 

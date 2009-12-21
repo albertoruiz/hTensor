@@ -42,7 +42,7 @@ hosvd' :: Array Double -> ([Array Double],[(Int,Vector Double)])
 hosvd' t = (factors,ss) where
     (rs,ss) = unzip $ map usOfSVD $ flats t
     n = length rs
-    dummies = take n $ seqIdx (2*n) "" \\ names t
+    dummies = take n $ seqIdx (2*n) "" \\ (names t)
     axs = zipWith (\a b->[a,b]) dummies (names t)
     factors = renameO core dummies : zipWith renameO (map (fromMatrix None None . trans) rs) axs
     core = product $ renameO t dummies : zipWith renameO (map (fromMatrix None None) rs) axs
@@ -101,7 +101,7 @@ unitRows (c:as) = foldl1' (.*) (c:xs) : as' where
         where n = head (names a) -- hmmm
               rs = parts a n
               scs = map frobT rs
-              x = diagT scs (order c) `renameO` (names c)
+              x = diagT scs (order c) `renameO` (sort $ names c)
               a' = (zipWith (.*) (map (scalar.recip) scs)) `onIndex` n $ a
 
 
@@ -171,7 +171,9 @@ cpInitSvd (hos) k = d:as
               where f r n = onIndex (take n . cycle) (head (names r)) r
 
 cpInitSeq rs t k = ones:as where
-    auxIndx = take (order t) $ map return ['a'..] \\ names t
+    n = order t
+    auxIndx = take n $ seqIdx (2*n) "cp" \\ names t
+              --take (order t) $ map return ['a'..] \\ names t
     ones = diagT (replicate k 1) (order t) `renameO` auxIndx
     ts = takes (map (*k) (sizes t)) rs
     as = zipWith4 f ts auxIndx (names t) (sizes t)

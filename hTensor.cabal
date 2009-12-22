@@ -21,20 +21,17 @@ Description:
  and operations typically work on whole structures which can be assembled
  and decomposed using simple primitives. Arguments are automatically made conformant
  by replicating them along extra dimensions appearing in an operation.
- There is preliminary support for Geometric Algebra.
+ There is preliminary support for Geometric Algebra and for solving multilinear systems.
  .
  A tutorial can be found in the website of the project.
 
 Category:           Math
-tested-with:        GHC ==6.10.4
+tested-with:        GHC ==6.12.1
 
 cabal-version:      >=1.2
 build-type:         Simple
 
-extra-source-files: examples/array.hs
-                    examples/exterior.hs
-                    examples/geom.hs
-                    examples/testCP.hs
+extra-source-files:
 
 flag splitBase
     description:    Choose the new smaller, split-up base package.

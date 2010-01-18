@@ -132,7 +132,8 @@ formatScaled :: (Compat i)
 formatScaled dec t = unlines (('(':d++")  E"++show o) : m)
     where ss = formatArray (printf fmt. g) t
           d:m = lines ss
-          g x = x/10^(o::Int)
+          g x | o >= 0    = x/10^(o::Int)
+              | otherwise = x*10^(-o)
           o = floor $ maximum $ map (logBase 10 . abs) $ toList $ coords t
           fmt = '%':show (dec+3) ++ '.':show dec ++"f"
 

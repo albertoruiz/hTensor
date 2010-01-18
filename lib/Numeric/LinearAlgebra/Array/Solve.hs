@@ -31,7 +31,7 @@ module Numeric.LinearAlgebra.Array.Solve (
 import Numeric.LinearAlgebra.Array.Util
 import Numeric.LinearAlgebra.Exterior
 import Numeric.LinearAlgebra.Array.Internal(mkNArray, selDims, debug, namesR)
-import Numeric.LinearAlgebra hiding ((.*))
+import Numeric.LinearAlgebra hiding ((.*), scalar)
 import Data.List
 import System.Random
 
@@ -72,7 +72,7 @@ solveHomog' g a nx' hint = xs where
     nx = filter (`elem` (namesR a)) nx'
     na = namesR a \\ nx
     aM = g $ matrixator a na nx
-    vs = nullspaceSVD hint aM (svd aM)
+    vs = nullspaceSVD hint aM (rightSV aM)
     dx = map opos (selDims (dims a) nx)
     xs = map (mkNArray dx) vs
 

@@ -64,13 +64,14 @@ import Data.List
 import Numeric.LinearAlgebra((<>),Field)
 import Control.Applicative
 import Data.Function(on)
+import Foreign(Storable)
 -- import Control.Parallel.Strategies
 import Debug.Trace
 
 debug m f x = trace (m ++ show (f x)) x
 
 -- | Types that can be elements of the multidimensional arrays.
-class (Num (Vector t), Field t) => Coord t
+class (Num (Vector t), Field t, Storable t) => Coord t
 instance Coord Double
 instance Coord (Complex Double)
 
@@ -93,7 +94,7 @@ data NArray i t = A { dims   :: [Idx i]   -- ^ Get detailed dimension informatio
                     }
 
 -- | development function not intended for the end user
-mkNArray :: [Idx i] -> Vector a -> NArray i a
+mkNArray :: (Coord a) => [Idx i] -> Vector a -> NArray i a
 mkNArray [] _ = error "array with empty dimensions, use scalar"
 mkNArray dms vec = A dms v where
     ds = map iDim dms
@@ -384,7 +385,7 @@ asScalar a | order a == 0 = coords a @>0
 ------------------------------------------------------------------------
 
 -- | Create a 1st order array from a 'Vector'.
-fromVector :: Compat i => i -> Vector t -> NArray i t
+fromVector :: (Coord t, Compat i) => i -> Vector t -> NArray i t
 fromVector i v = mkNArray [Idx i (dim v) "1"] v
 
 -- | Create a 2nd order array from a 'Matrix'.

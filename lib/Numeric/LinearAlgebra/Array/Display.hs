@@ -160,7 +160,7 @@ width = maximum . map (length . (printf "%.0f"::Double->String)) . toList . coor
 ------------------------------------------------------
 
 -- | Insert a dummy index of dimension 1 at a given level (for formatting purposes).
-dummyAt :: Int -> NArray i t -> NArray i t
+dummyAt :: Coord t => Int -> NArray i t -> NArray i t
 dummyAt k t = mkNArray d' (coords t) where
     (d1,d2) = splitAt k (dims t)
     d' = d1 ++ d : d2

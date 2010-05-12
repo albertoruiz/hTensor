@@ -1,5 +1,5 @@
 Name:               hTensor
-Version:            0.5.0.1
+Version:            0.6.0
 License:            GPL
 License-file:       LICENSE
 Author:             Alberto Ruiz
@@ -42,7 +42,7 @@ library
     else
       build-depends:    base < 3
 
-    Build-Depends:      hmatrix >= 0.8.2, containers, random
+    Build-Depends:      hmatrix >= 0.9.3, containers, random
 
     hs-source-dirs:     lib
     Exposed-modules:    Numeric.LinearAlgebra.Array.Util
@@ -62,3 +62,4 @@ library
     ghc-options:        -Wall
                         -fno-warn-missing-signatures
                         -fno-warn-orphans
+

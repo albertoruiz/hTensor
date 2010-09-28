@@ -58,7 +58,7 @@ instance (Coord t, Compat i, Num (NArray i t)) => Fractional (NArray i t) where
     (/) = zipArray (/)
     recip = mapArray recip
 
-instance (Coord t, Compat i, Fractional (NArray i t), Floating (Vector t)) => Floating (NArray i t) where
+instance (Coord t, Compat i, Fractional (NArray i t), Floating t, Floating (Vector t)) => Floating (NArray i t) where
     sin   = mapArray sin
     cos   = mapArray cos
     tan   = mapArray tan

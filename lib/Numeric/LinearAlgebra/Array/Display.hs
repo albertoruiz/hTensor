@@ -18,6 +18,7 @@ module Numeric.LinearAlgebra.Array.Display (
 
 import Numeric.LinearAlgebra.Array.Internal
 import Data.Packed
+import Numeric.Container(format)
 import Data.List
 import Text.Printf
 

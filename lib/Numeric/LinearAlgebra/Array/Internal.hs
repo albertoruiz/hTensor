@@ -60,18 +60,23 @@ module Numeric.LinearAlgebra.Array.Internal (
 ) where
 
 import Data.Packed
+import Numeric.Container(konst)
+import Data.Complex
 import Data.List
-import Numeric.LinearAlgebra((<>),Field)
+import Numeric.LinearAlgebra((<>),Field,Normed)
 import Control.Applicative
+--import Control.Arrow ((***))
 import Data.Function(on)
-import Foreign(Storable)
+-- import Foreign(Storable)
 -- import Control.Parallel.Strategies
 import Debug.Trace
+
+ident n = diagRect 0 (konst 1 n) n n
 
 debug m f x = trace (m ++ show (f x)) x
 
 -- | Types that can be elements of the multidimensional arrays.
-class (Num (Vector t), Field t, Storable t) => Coord t
+class (Num (Vector t), Field t, Normed Vector t) => Coord t
 instance Coord Double
 instance Coord (Complex Double)
 
@@ -339,15 +344,19 @@ basisOf t = map (dims t `mkNArray`) $ toRows (ident . dim . coords $ t)
 
 -------------------------------------------------------------
 
-instance (Coord t, Coord (Complex t), Compat i, Container Vector t) => Container (NArray i) t where
-    toComplex (r,c) = zipArray (curry toComplex) r c
-    fromComplex t = let (r,c) = fromComplex (coords t)
-                     in (mapArray (const r) t, mapArray (const c) t)
-    comp = mapArray comp
-    conj = mapArray conj
-    real = mapArray real
-    complex = mapArray complex
-
+-- instance (Container Vector, Compat i) => ComplexContainer (NArray i) where
+-- --    cmap f (A d v) = A d (cmap f v)
+--     conj (A d v) = A d (conj v)
+--     complex' (A d v) = A d (complex' v) -- mapArray without constraints
+-- 
+--     toComplex (A d1 r, A d2 c)  -- zipArray without constraints
+--         | d1==d2 = A d1 (toComplex (r,c))
+--         | otherwise = error "toComplex on arrays with different structure"
+-- 
+--     fromComplex (A d v) = (A d *** A d) (fromComplex v)
+-- 
+--     single' (A d v) = A d (single' v)
+--     double' (A d v) = A d (double' v)
 
 -- instance (NFData t, Element t) => NFData (NArray i t) where
 --     rnf = rnf . coords

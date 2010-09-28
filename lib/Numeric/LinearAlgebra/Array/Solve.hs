@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, TypeFamilies #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Packed.Array.Solve
@@ -154,7 +154,7 @@ percentP h t s = 100 * frobT (t' - s') / frobT t' where
     g v = v / atT v [n]
     n = size h t - 1
 
-frobT t = pnorm PNorm2 . coords $ t
+frobT t = realToFrac . pnorm PNorm2 . coords $ t
 --unitT t = t / scalar (frobT t)
 
 dropElemPos k xs = take k xs ++ drop (k+1) xs
@@ -172,7 +172,7 @@ alsStep f params a x = (foldl1' (.) (map (f params a) [n,n-1 .. 0])) x
 
 -- | Solution of a multilinear system a x y z ... = b based on alternating least squares.
 mlSolve
-  :: (Compat i, Coord t, Num (NArray i t), Normed (Vector t))
+  :: (Compat i, Coord t, Num (NArray i t))
      => ALSParam i t     -- ^ optimization parameters
      -> [NArray i t]  -- ^ coefficients (a), given as a list of factors.
      -> [NArray i t]  -- ^ initial solution [x,y,z...]
@@ -192,7 +192,7 @@ alsArg b params a k xs = sol where
 
 -- | Solution of the homogeneous multilinear system a x y z ... = 0 based on alternating least squares.
 mlSolveH
-  :: (Compat i, Coord t, Num (NArray i t), Normed (Vector t))
+  :: (Compat i, Coord t, Num (NArray i t))
      => ALSParam  i t    -- ^ optimization parameters
      -> [NArray i t]  -- ^ coefficients (a), given as a list of factors.
      -> [NArray i t]  -- ^ initial solution [x,y,z...]
@@ -232,7 +232,7 @@ alsArgP b h params a k xs = sol where
 {- | Given two arrays a (source) and  b (target), we try to compute linear transformations x,y,z,... for each dimension, such that product [a,x,y,z,...] == b.
 (We can use 'eqnorm' for 'post' processing, or 'id'.)
 -}
-solveFactors :: (Coord t, Random t, Compat i, Num (NArray i t), Normed (Vector t))
+solveFactors :: (Coord t, Random t, Compat i, Num (NArray i t))
              => Int          -- ^ seed for random initialization
              -> ALSParam i t     -- ^ optimization parameters
              -> [NArray i t] -- ^ source (also factorized)
@@ -264,7 +264,7 @@ initFactorsRandom seed a b = initFactorsSeq (randomRs (-1,1) (mkStdGen seed)) a 
 -- [\"pi\",\"qj\", \"rk\", etc.], we try to compute linear transformations
 -- x!\"pi\", y!\"pi\", z!\"rk\", etc. such that product [a,x,y,z,...] == 0.
 solveFactorsH
-  :: (Coord t, Random t, Compat i, Num (NArray i t), Normed (Vector t))
+  :: (Coord t, Random t, Compat i, Num (NArray i t))
      => Int -- ^ seed for random initialization
      -> ALSParam  i t    -- ^ optimization parameters
      -> [NArray i t] -- ^ coefficient array (a), (also factorized)
@@ -287,15 +287,15 @@ initFactorsHRandom seed a pairs = initFactorsHSeq (randomRs (-1,1) (mkStdGen see
 
 -- | post processing function that modifies a list of tensors so that they
 -- have equal frobenius norm
-eqnorm :: (Coord t, Coord (Complex t), Compat i, Num (NArray i t), Normed (Vector t) )
-       => [NArray i t] -> [NArray i t]
+eqnorm :: (Compat i,Show (NArray i Double))
+       => [NArray i Double] -> [NArray i Double]
 
 eqnorm [] = error "eqnorm []"
 eqnorm as = as' where
     n = length as
     fs = map (frobT) as
     s = product fs ** (1/fromIntegral n)
-    as' = zipWith g as fs where g a f = a * real (scalar (s/f))
+    as' = zipWith g as fs where g a f = a * (scalar (s/f))
 
 -- | nMax = 20, epsilon = 1E-3, delta = 1, post = id, postk = const id, presys = id
 defaultParameters :: ALSParam i t

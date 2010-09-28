@@ -40,13 +40,13 @@ module Numeric.LinearAlgebra.Array.Util (
     renameParts,
     asScalar, asVector, asMatrix, applyAsMatrix,
     fibers, matrixator, matrixatorFree, analyzeProduct,
-    fromVector, fromMatrix,
-    Container(..),
+    fromVector, fromMatrix
+    -- ,Container(..),
 ) where
 
 import Numeric.LinearAlgebra.Array.Internal
 import Numeric.LinearAlgebra.Array.Display
-import Data.Packed(Container(..),Matrix)
+import Data.Packed(Matrix)
 import Numeric.LinearAlgebra.Array.Simple
 import Data.List(intersperse,sort,foldl1')
 

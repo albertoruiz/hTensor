@@ -24,7 +24,7 @@ There is preliminary support for geometric algebra, multidimensional linear syst
   - part 1: [tensor diagrams][ap1]
   - part 2: (in construction)
   
-- Source repository: [darcs get http://perception.inf.um.es/~aruiz/darcs/hTensor][repo]
+- Source repository: [https://github.com/AlbertoRuiz/hTensor][repo]
 
 Installation
 ------------
@@ -55,13 +55,13 @@ Test
 
 [yo]: http://dis.um.es/profesores/alberto
 [haskell]: http://www.haskell.org
-[hmatrix]: http://code.haskell.org/hmatrix
+[hmatrix]: http://perception.inf.um.es/hmatrix
 
 [source]: http://hackage.haskell.org/package/hTensor
 [tutorial]: http://perception.inf.um.es/tensor/hTensor.pdf
 [ap1]: http://perception.inf.um.es/tensor/htmvg1.pdf
-[repo]: http://perception.inf.um.es/cgi-bin/darcsweb.cgi?r=hTensor;a=summary
+[repo]: https://github.com/AlbertoRuiz/hTensor
 
-[install]: http://code.haskell.org/hmatrix/install.html
+[install]: http://perception.inf.um.es/hmatrix/install.html
 [ghc]: http://www.haskell.org/ghc
 

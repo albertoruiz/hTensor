@@ -1,0 +1,12 @@
+_darcs
+dist
+cabal-dev
+*.o
+*.hi
+*.chi
+*.chs.h
+
+examples
+push.sh
+hTensor.html
+

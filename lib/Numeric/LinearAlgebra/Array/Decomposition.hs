@@ -25,7 +25,7 @@ import Numeric.LinearAlgebra.Array
 import Numeric.LinearAlgebra.Array.Internal(seqIdx,namesR,sizesR,renameRaw)
 import Numeric.LinearAlgebra.Array.Util
 import Numeric.LinearAlgebra.Array.Solve
-import Numeric.LinearAlgebra hiding ((.*), scalar)
+import Numeric.LinearAlgebra hiding (scalar)
 import Data.List
 import System.Random
 --import Control.Parallel.Strategies

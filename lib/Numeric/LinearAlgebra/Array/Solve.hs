@@ -31,7 +31,7 @@ module Numeric.LinearAlgebra.Array.Solve (
 import Numeric.LinearAlgebra.Array.Util
 import Numeric.LinearAlgebra.Exterior
 import Numeric.LinearAlgebra.Array.Internal(mkNArray, selDims, debug, namesR)
-import Numeric.LinearAlgebra hiding ((.*), scalar)
+import Numeric.LinearAlgebra hiding (scalar)
 import Data.List
 import System.Random
 
@@ -172,7 +172,7 @@ alsStep f params a x = (foldl1' (.) (map (f params a) [n,n-1 .. 0])) x
 
 -- | Solution of a multilinear system a x y z ... = b based on alternating least squares.
 mlSolve
-  :: (Compat i, Coord t, Num (NArray i t))
+  :: (Compat i, Coord t, Num (NArray i t), Show (NArray i t))
      => ALSParam i t     -- ^ optimization parameters
      -> [NArray i t]  -- ^ coefficients (a), given as a list of factors.
      -> [NArray i t]  -- ^ initial solution [x,y,z...]
@@ -192,7 +192,7 @@ alsArg b params a k xs = sol where
 
 -- | Solution of the homogeneous multilinear system a x y z ... = 0 based on alternating least squares.
 mlSolveH
-  :: (Compat i, Coord t, Num (NArray i t))
+  :: (Compat i, Coord t, Num (NArray i t), Show (NArray i t))
      => ALSParam  i t    -- ^ optimization parameters
      -> [NArray i t]  -- ^ coefficients (a), given as a list of factors.
      -> [NArray i t]  -- ^ initial solution [x,y,z...]
@@ -232,7 +232,7 @@ alsArgP b h params a k xs = sol where
 {- | Given two arrays a (source) and  b (target), we try to compute linear transformations x,y,z,... for each dimension, such that product [a,x,y,z,...] == b.
 (We can use 'eqnorm' for 'post' processing, or 'id'.)
 -}
-solveFactors :: (Coord t, Random t, Compat i, Num (NArray i t))
+solveFactors :: (Coord t, Random t, Compat i, Num (NArray i t), Show (NArray i t))
              => Int          -- ^ seed for random initialization
              -> ALSParam i t     -- ^ optimization parameters
              -> [NArray i t] -- ^ source (also factorized)
@@ -264,7 +264,7 @@ initFactorsRandom seed a b = initFactorsSeq (randomRs (-1,1) (mkStdGen seed)) a 
 -- [\"pi\",\"qj\", \"rk\", etc.], we try to compute linear transformations
 -- x!\"pi\", y!\"pi\", z!\"rk\", etc. such that product [a,x,y,z,...] == 0.
 solveFactorsH
-  :: (Coord t, Random t, Compat i, Num (NArray i t))
+  :: (Coord t, Random t, Compat i, Num (NArray i t), Show (NArray i t))
      => Int -- ^ seed for random initialization
      -> ALSParam  i t    -- ^ optimization parameters
      -> [NArray i t] -- ^ coefficient array (a), (also factorized)

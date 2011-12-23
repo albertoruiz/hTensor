@@ -42,7 +42,7 @@ infixl 7 .*
 (.*) :: (Coord a, Compat i) => NArray i a -> NArray i a -> NArray i a
 (.*) = zipArray (*)
 
-instance (Coord t, Compat i) => Eq (NArray i t) where
+instance (Eq t, Coord t, Compat i) => Eq (NArray i t) where
     t1 == t2 = sameStructure t1 t2 && coords t1 == coords (reorder (namesR t1) t2)
 
 instance (Show (NArray i t), Coord t, Compat i) => Num (NArray i t) where

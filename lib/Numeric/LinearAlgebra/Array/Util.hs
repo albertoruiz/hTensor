@@ -68,8 +68,10 @@ diagT v n = replicate n k `listArray` concat (intersperse z (map return v))
 -- For instance, @t >\@> \"pi qj\"@ changes index \"p\" to \"i\" and \"q\" to \"j\".
 (!>) :: (Compat i, Coord t) => NArray i t -> [Char] -> NArray i t
 infixl 9 !>
-t !> s = renameExplicit (map (\[a,b]->([a],[b])) (words s)) t
-
+t !> s = renameExplicit (map f (words s)) t
+  where
+    f [a,b] = ([a],[b])
+    f _ = error "impossible pattern in hTensor (!>)"
 
 -- | Rename indices in alphabetical order. Equal indices of compatible type are contracted out.
 renameO :: (Coord t, Compat i)

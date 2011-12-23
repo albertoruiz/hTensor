@@ -245,7 +245,7 @@ solveFactors seed params a pairs b =
 initFactorsSeq rs a pairs b | ok = as
                             | otherwise = error "solveFactors index pairs"
   where
-    (ia,ib) = unzip (map (\[x,y]->([x],[y])) (words pairs))
+    (ia,ib) = unzip (map sep (words pairs))
     ic = intersect (namesR a) (namesR b)
     ok = sort (namesR b\\ic) == sort ib && sort (namesR a\\ic) == sort ia
     db = selDims (dims b) ib
@@ -274,7 +274,7 @@ solveFactorsH seed params a pairs =
     mlSolveH params a (initFactorsHRandom seed (smartProduct a) pairs)
 
 initFactorsHSeq rs a pairs = as where
-    (ir,it) = unzip (map (\[x,y]->([x],[y])) (words pairs))
+    (ir,it) = unzip (map sep (words pairs))
     nr = map (flip size a) ir
     nt = map (flip size a) it
     ts = takes (zipWith (*) nr nt) rs
@@ -282,6 +282,9 @@ initFactorsHSeq rs a pairs = as where
     f c i1 i2 d1 d2 = (mkNArray (map opos [d1,d2]) (fromList c)) `renameO` [i1,i2]
 
 initFactorsHRandom seed a pairs = initFactorsHSeq (randomRs (-1,1) (mkStdGen seed)) a pairs
+
+sep [a,b] = ([a],[b])
+sep _ = error "impossible pattern in hTensor initFactors"
 
 ----------------------------------
 

@@ -63,3 +63,7 @@ library
                         -fno-warn-missing-signatures
                         -fno-warn-orphans
 
+source-repository head
+    type:     git
+    location: https://github.com/AlbertoRuiz/hTensor
+

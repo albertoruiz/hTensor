@@ -38,6 +38,7 @@ module Numeric.LinearAlgebra.Array.Util (
     atT, takeDiagT, diagT,
     mkFun, mkAssoc, setType,
     renameParts,
+    resetCoords,
     asScalar, asVector, asMatrix, applyAsMatrix,
     fibers, matrixator, matrixatorFree, analyzeProduct,
     fromVector, fromMatrix

@@ -56,6 +56,7 @@ module Numeric.LinearAlgebra.Array.Internal (
     firstIdx, fibers, matrixator, matrixatorFree,
     Coord,
     asMatrix, asVector, asScalar,
+    resetCoords,
     debug
 ) where
 
@@ -108,6 +109,12 @@ mkNArray dms vec = A dms v where
             then vec
             else error $ show ds ++ " dimensions and " ++
                          show (dim vec) ++ " coordinates for mkNArray"
+
+resetCoords :: Coord t => NArray i t -> Vector t -> NArray i t
+-- ^ change the whole set of coordinates.
+resetCoords (A dms u) v | dim u == dim v = A dms v
+                        | otherwise = error "wrong size in replaceCoords"
+
 
 -- | Create a 0-dimensional structure.
 scalar :: Coord t => t -> NArray i t

@@ -315,3 +315,4 @@ defaultParameters = ALSParam {
 -- coefficient matrix of a linear system.
 infoRank :: Field t => Matrix t -> Matrix t
 infoRank a = debug "" (const (rows a, cols a, rank a)) a
+

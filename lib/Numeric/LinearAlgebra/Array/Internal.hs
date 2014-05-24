@@ -254,7 +254,7 @@ partsRaw a name = map f (toRows m)
           f t = A {dims=ds, coords=t}
 
 tridx [] t = t
-tridx (name:rest) t = A (d:ds) (join ts) where
+tridx (name:rest) t = A (d:ds) (vjoin ts) where
     d = case lastIdx name t of
             ((_,d':_),_) -> d'
             _ -> error "wrong index sequence to reorder"
@@ -341,7 +341,7 @@ newIndex:: (Coord t, Compat i) =>
 newIndex i name ts = r where
     ds = Idx i (length ts) name : (dims (head cts))
     cts = makeConformant ts
-    r = mkNArray ds (join $ map coords cts)
+    r = mkNArray ds (vjoin $ map coords cts)
 
 -------------------------------------------------------
 
@@ -440,7 +440,7 @@ extend alldims (A d v) = reorder (allnames) s where
     allnames = map iName alldims
     pref = alldims \\ d
     n = product (map iDim pref)
-    s = A (pref++d) (join (replicate n v))
+    s = A (pref++d) (vjoin (replicate n v))
 
 -- | Obtains most general structure of a list of dimension specifications
 conformable :: Compat i => [[Idx i]] -> Maybe [Idx i]

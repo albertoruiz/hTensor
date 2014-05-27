@@ -2,9 +2,8 @@
 -- |
 -- Module      :  Numeric.LinearAlgebra.Multivector
 -- Copyright   :  (c) Alberto Ruiz 2009
--- License     :  GPL
---
--- Maintainer  :  Alberto Ruiz <aruiz@um.es>
+-- License     :  BSD3
+-- Maintainer  :  Alberto Ruiz
 -- Stability   :  experimental
 --
 -- A simple implementation of Geometric Algebra.

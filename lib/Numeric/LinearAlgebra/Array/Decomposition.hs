@@ -3,10 +3,9 @@
 -- |
 -- Module      :  Data.Packed.Array.Decomposition
 -- Copyright   :  (c) Alberto Ruiz 2009
--- License     :  GPL
---
--- Maintainer  :  Alberto Ruiz <aruiz@um.es>
--- Stability   :  provisional
+-- License     :  BSD3
+-- Maintainer  :  Alberto Ruiz
+-- Stability   :  experimental
 --
 -- Common multidimensional array decompositions. See the paper by Kolda & Balder.
 --

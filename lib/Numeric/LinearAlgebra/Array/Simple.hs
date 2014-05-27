@@ -4,11 +4,9 @@
 -- |
 -- Module      :  Data.Packed.Array.Simple
 -- Copyright   :  (c) Alberto Ruiz 2009
--- License     :  GPL
---
--- Maintainer  :  Alberto Ruiz <aruiz@um.es>
+-- License     :  BSD3
+-- Maintainer  :  Alberto Ruiz
 -- Stability   :  provisional
--- Portability :  portable
 --
 -- Simple multidimensional arrays.
 -- Contractions only require equal dimension.

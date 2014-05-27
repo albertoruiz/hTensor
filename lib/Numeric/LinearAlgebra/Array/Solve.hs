@@ -3,9 +3,8 @@
 -- |
 -- Module      :  Data.Packed.Array.Solve
 -- Copyright   :  (c) Alberto Ruiz 2009
--- License     :  GPL
---
--- Maintainer  :  Alberto Ruiz <aruiz@um.es>
+-- License     :  BSD3
+-- Maintainer  :  Alberto Ruiz
 -- Stability   :  provisional
 --
 -- Solution of general multidimensional linear and multilinear systems.

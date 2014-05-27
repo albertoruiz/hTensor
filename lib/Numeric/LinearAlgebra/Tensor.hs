@@ -3,9 +3,8 @@
 -- |
 -- Module      :  Numeric.LinearAlgebra.Tensor
 -- Copyright   :  (c) Alberto Ruiz 2009
--- License     :  GPL
---
--- Maintainer  :  Alberto Ruiz <aruiz@um.es>
+-- License     :  BSD3
+-- Maintainer  :  Alberto Ruiz
 -- Stability   :  experimental
 --
 -- Tensor computations. Indices can only be contracted if they are of different 'Variant' type.

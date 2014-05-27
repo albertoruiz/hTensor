@@ -3,11 +3,9 @@
 -- |
 -- Module      :  Data.Packed.Array.Util
 -- Copyright   :  (c) Alberto Ruiz 2009
--- License     :  GPL
---
--- Maintainer  :  Alberto Ruiz <aruiz@um.es>
+-- License     :  BSD3
+-- Maintainer  :  Alberto Ruiz
 -- Stability   :  provisional
--- Portability :  portable
 --
 -- Additional tools for manipulation of multidimensional arrays.
 --

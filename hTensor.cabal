@@ -1,6 +1,6 @@
 Name:               hTensor
 Version:            0.8.2
-License:            GPL
+License:            BSD3
 License-file:       LICENSE
 Author:             Alberto Ruiz
 Maintainer:         Alberto Ruiz <aruiz@um.es>

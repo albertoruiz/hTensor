@@ -3,9 +3,8 @@
 -- |
 -- Module      :  Numeric.LinearAlgebra.Exterior
 -- Copyright   :  (c) Alberto Ruiz 2009
--- License     :  GPL
---
--- Maintainer  :  Alberto Ruiz <aruiz@um.es>
+-- License     :  BSD3
+-- Maintainer  :  Alberto Ruiz
 -- Stability   :  experimental
 --
 -- Exterior Algebra.

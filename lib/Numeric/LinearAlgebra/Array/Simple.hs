@@ -20,7 +20,7 @@ module Numeric.LinearAlgebra.Array.Simple (
 ) where
 
 import Numeric.LinearAlgebra.Array.Internal
-import Data.Packed
+import Numeric.LinearAlgebra.HMatrix
 import Data.List(intersperse)
 
 
@@ -41,7 +41,7 @@ instance Compat None where
 type Array t = NArray None t
 
 instance (Coord t) => Show (Array t) where
-    show t | null (dims t) = "scalar "++ show (coords t @>0)
+    show t | null (dims t) = "scalar "++ show (coords t !0)
            | order t == 1 = "index " ++ show n ++" " ++ (show . toList . coords $ t)
            | otherwise = "index "++ show n ++ " [" ++ ps ++ "]"
       where n = head (namesR t)

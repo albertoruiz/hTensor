@@ -58,24 +58,22 @@ module Numeric.LinearAlgebra.Array.Internal (
     debug
 ) where
 
-import Data.Packed
-import Numeric.Container(konst)
-import Data.Complex
+
+import qualified Numeric.LinearAlgebra.HMatrix as LA
+import Numeric.LinearAlgebra.HMatrix hiding (size,scalar,ident)
 import Data.List
-import Numeric.LinearAlgebra((<>),Field,Normed)
-import Control.Applicative
---import Control.Arrow ((***))
 import Data.Function(on)
--- import Foreign(Storable)
--- import Control.Parallel.Strategies
 import Debug.Trace
+
+dim x = LA.size x
+trans x = LA.tr x
 
 ident n = diagRect 0 (konst 1 n) n n
 
 debug m f x = trace (m ++ show (f x)) x
 
 -- | Types that can be elements of the multidimensional arrays.
-class (Num (Vector t), Field t, Normed Vector t, Show t) => Coord t
+class (Num (Vector t), Field t, Normed (Vector t), Show t, Numeric t, Indexable (Vector t) t) => Coord t
 instance Coord Double
 instance Coord (Complex Double)
 
@@ -272,9 +270,9 @@ reorder ns b | ns == namesR b = b
 
 -- | Apply a function (defined on hmatrix 'Vector's) to all elements of a structure.
 -- Use @mapArray (mapVector f)@ for general functions.
-mapArray :: Coord b => (Vector a -> Vector b) -> NArray i a -> NArray i b
+mapArray :: (Coord b) => (Vector a -> Vector b) -> NArray i a -> NArray i b
 mapArray f t
-    | null (dims t) = scalar (f (coords t)@>0)
+    | null (dims t) = scalar (f (coords t)!0)
     | otherwise = mkNArray (dims t) (f (coords t))
 
 liftNA2 f (A d1 v1) (A _d2 v2) = A d1 (f v1 v2)
@@ -393,7 +391,7 @@ asVector a | order a == 1 = coords a
 
 -- | Extract the scalar element corresponding to a 0-dimensional array.
 asScalar :: (Coord t) => NArray i t -> t
-asScalar a | order a == 0 = coords a @>0
+asScalar a | order a == 0 = coords a ! 0
            | otherwise = error $ "asScalar requires a 0th order array."
 
 ------------------------------------------------------------------------
@@ -504,3 +502,4 @@ dropElemPos k xs = take k xs ++ drop (k+1) xs
 -- | sequence of n indices with given prefix
 seqIdx :: Int -> String -> [Name]
 seqIdx n prefix = [prefix ++ show k | k <- [1 .. n] ]
+

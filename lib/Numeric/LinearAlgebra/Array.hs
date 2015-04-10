@@ -28,7 +28,7 @@ import Numeric.LinearAlgebra.Array.Simple
 import Numeric.LinearAlgebra.Array.Util
 import Numeric.LinearAlgebra.Array.Internal(namesR)
 import Numeric.LinearAlgebra.Array.Display(printA)
-import Data.Packed(Vector)
+import Numeric.LinearAlgebra.HMatrix(Vector)
 
 -- | Create an 'Array' from a list of parts (@index = 'newIndex' 'None'@).
 index :: Coord t => Name -> [Array t] -> Array t

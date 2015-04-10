@@ -1,5 +1,5 @@
 Name:               hTensor
-Version:            0.8.2
+Version:            0.9.0
 License:            BSD3
 License-file:       LICENSE
 Author:             Alberto Ruiz
@@ -33,16 +33,9 @@ build-type:         Simple
 
 extra-source-files:
 
-flag splitBase
-    description:    Choose the new smaller, split-up base package.
-
 library
-    if flag(splitBase)
-      build-depends:    base >= 3 && < 5
-    else
-      build-depends:    base < 3
 
-    Build-Depends:      hmatrix, containers, random
+    Build-Depends:      base<5, hmatrix>=0.17, containers, random
 
     hs-source-dirs:     lib
     Exposed-modules:    Numeric.LinearAlgebra.Array.Util

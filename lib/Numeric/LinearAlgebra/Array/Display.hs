@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Packed.Array.Display
@@ -15,8 +17,7 @@ module Numeric.LinearAlgebra.Array.Display (
 ) where
 
 import Numeric.LinearAlgebra.Array.Internal
-import Data.Packed
-import Numeric.Container(format)
+import Numeric.LinearAlgebra.HMatrix
 import Data.List
 import Text.Printf
 
@@ -70,7 +71,7 @@ mapTail _ x     = x
 formatAux f x = unlines . addds . els . fmt ms $ x where
     fmt [] _ = undefined -- cannot happen
     fmt (g:gs) t
-        | order t == 0 = rect (f (coords t @> 0))
+        | order t == 0 = rect (f (coords t ! 0))
         | order t == 1 =  rect $ unwords $ map f (toList $ coords t)
         | order t == 2 =  decor t $ rect $ w1 $ format " " f (reshape (iDim $ last $ dims t) (coords t))
         | otherwise    = decor t (g ps)

@@ -23,14 +23,15 @@ module Numeric.LinearAlgebra.Array.Solve (
 -- ** Factorized
     solveFactors, solveFactorsH,
 -- * Utilities
-    eps, eqnorm, infoRank,
+    eqnorm, infoRank,
     solve', solveHomog', solveHomog1', solveP'
 ) where
 
 import Numeric.LinearAlgebra.Array.Util
 import Numeric.LinearAlgebra.Exterior
 import Numeric.LinearAlgebra.Array.Internal(mkNArray, selDims, debug, namesR)
-import Numeric.LinearAlgebra hiding (scalar)
+import Numeric.LinearAlgebra.HMatrix hiding (scalar,size)
+--import qualified Numeric.LinearAlgebra.HMatrix as LA
 import Data.List
 import System.Random
 
@@ -71,7 +72,7 @@ solveHomog' g a nx' hint = xs where
     nx = filter (`elem` (namesR a)) nx'
     na = namesR a \\ nx
     aM = g $ matrixator a na nx
-    vs = nullspaceSVD hint aM (rightSV aM)
+    vs = toColumns $ nullspaceSVD hint aM (rightSV aM)
     dx = map opos (selDims (dims a) nx)
     xs = map (mkNArray dx) vs
 
@@ -153,7 +154,7 @@ percentP h t s = 100 * frobT (t' - s') / frobT t' where
     g v = v / atT v [n]
     n = size h t - 1
 
-frobT t = realToFrac . pnorm PNorm2 . coords $ t
+frobT t = realToFrac . norm_2 . coords $ t
 --unitT t = t / scalar (frobT t)
 
 dropElemPos k xs = take k xs ++ drop (k+1) xs

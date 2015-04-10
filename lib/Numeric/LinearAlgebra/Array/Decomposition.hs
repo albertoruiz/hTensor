@@ -24,7 +24,7 @@ import Numeric.LinearAlgebra.Array
 import Numeric.LinearAlgebra.Array.Internal(seqIdx,namesR,sizesR,renameRaw)
 import Numeric.LinearAlgebra.Array.Util
 import Numeric.LinearAlgebra.Array.Solve
-import Numeric.LinearAlgebra hiding (scalar)
+import Numeric.LinearAlgebra.HMatrix hiding (scalar)
 import Data.List
 import System.Random
 --import Control.Parallel.Strategies
@@ -43,7 +43,7 @@ hosvd' t = (factors,ss) where
     n = length rs
     dummies = take n $ seqIdx (2*n) "" \\ (namesR t)
     axs = zipWith (\a b->[a,b]) dummies (namesR t)
-    factors = renameRaw core dummies : zipWith renameRaw (map (fromMatrix None None . trans) rs) axs
+    factors = renameRaw core dummies : zipWith renameRaw (map (fromMatrix None None . tr) rs) axs
     core = product $ renameRaw t dummies : zipWith renameRaw (map (fromMatrix None None) rs) axs
 
 {- | Multilinear Singular Value Decomposition (or Tucker's method, see Lathauwer et al.).
@@ -68,14 +68,14 @@ flats t = map (flip fibers t) (namesR t)
 
 --check trans/ctrans
 usOfSVD m = if rows m < cols m
-        then let (s2,u) = eigSH' $ m <> ctrans m
+        then let (s2,u) = eigSH' $ m <> tr m
                  s = sqrt (abs s2)
               in (u,r s)
-        else let (s2,v) = eigSH' $ ctrans m <> m
+        else let (s2,v) = eigSH' $ tr m <> m
                  s = sqrt (abs s2)
                  u = m <> v <> pinv (diag s)
               in (u,r s)
-    where r s = (ranksv (sqrt eps) (max (rows m) (cols m)) (toList s), s)
+    where r s = (ranksv (sqrt peps) (max (rows m) (cols m)) (toList s), s)
                 -- (rank m, sv m) where sv m = s where (_,s,_) = svd m
 
 
@@ -89,7 +89,7 @@ truncateFactors ns (c:rs) = ttake ns c : zipWith f rs ns
 
 ------------------------------------------------------------------------
 
-frobT = pnorm PNorm2 . coords
+frobT = norm_2 . coords
 
 ------------------------------------------------------------------------
 

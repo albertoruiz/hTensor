@@ -26,7 +26,7 @@ module Numeric.LinearAlgebra.Tensor (
 ) where
 
 import Numeric.LinearAlgebra.Array.Internal
-import Numeric.LinearAlgebra
+import Numeric.LinearAlgebra.HMatrix hiding (vector)
 import Numeric.LinearAlgebra.Array
 import Data.List(intersperse)
 
@@ -43,7 +43,7 @@ instance Show (Idx Variant) where
     show (Idx Contra n s) = s ++ "^" ++ show n
 
 instance (Coord t) => Show (Tensor t) where
-    show t | null (dims t) = "scalar "++ show (coords t @>0)
+    show t | null (dims t) = "scalar "++ show (coords t `atIndex` 0)
            | order t == 1 = ixn ++ show n ++" " ++ (show . toList . coords $ t)
            | otherwise = ixn ++ show n ++ " [" ++ ps ++ "]"
       where n = head (namesR t)

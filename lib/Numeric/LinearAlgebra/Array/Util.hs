@@ -45,7 +45,7 @@ module Numeric.LinearAlgebra.Array.Util (
 
 import Numeric.LinearAlgebra.Array.Internal
 import Numeric.LinearAlgebra.Array.Display
-import Data.Packed(Matrix)
+import Numeric.LinearAlgebra.HMatrix(Matrix)
 import Numeric.LinearAlgebra.Array.Simple
 import Data.List(intersperse,sort,foldl1')
 

@@ -23,7 +23,7 @@ module Numeric.LinearAlgebra.Multivector (
     fromTensor
 ) where
 
-import Numeric.LinearAlgebra(toList,reshape,(<\>),(@>))
+import Numeric.LinearAlgebra.HMatrix(toList,reshape,(<\>),atIndex)
 import Numeric.LinearAlgebra.Array.Internal hiding (scalar,coords)
 import Numeric.LinearAlgebra.Array.Display (showBases)
 import Numeric.LinearAlgebra.Tensor hiding (scalar,vector)
@@ -246,7 +246,7 @@ mvrecip b = divi (maxDim b) 1 b
 -- (We do not check that the tensor is actually antisymmetric.)
 fromTensor :: Tensor Double -> Multivector
 fromTensor t = MV $ filter ((/=0.0).fst) $ zip vals basis
-    where vals = map ((@> 0). Array.coords .foldl' partF t) (map (map pred) basis)
+    where vals = map ((`atIndex` 0). Array.coords .foldl' partF t) (map (map pred) basis)
           r = length (dims t)
           n = iDim . head . dims $ t
           partF s i = part s (name,i) where name = iName . head . dims $ s

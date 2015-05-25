@@ -51,7 +51,7 @@ instance (Show (NArray i t), Coord t, Compat i) => Num (NArray i t) where
     abs _ = error "abs for arrays not defined"
     signum _ = error "signum for arrays not defined"
 
-instance (Coord t, Compat i, Num (NArray i t)) => Fractional (NArray i t) where
+instance (Fractional t, Coord t, Compat i, Num (NArray i t)) => Fractional (NArray i t) where
     fromRational = scalar . fromRational
     (/) = zipArray (/)
     recip = mapArray recip

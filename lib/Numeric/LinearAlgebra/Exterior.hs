@@ -60,7 +60,7 @@ infixl 5 /\
 -- | The exterior (wedge) product of two tensors. Obtains the union of subspaces.
 --
 --   Implemented as the antisymmetrization of the tensor product.
-(/\) :: (Coord t)
+(/\) :: (Coord t, Fractional t)
      => Tensor t
      -> Tensor t
      -> Tensor t
@@ -98,7 +98,7 @@ dual t | isScalar t = error $ "cannot deduce dimension for dual of a scalar. Use
                 Nothing -> error $ "dual with different dimensions"
 
 -- | Euclidean inner product of multivectors.
-inner :: (Coord t)
+inner :: (Coord t, Fractional t)
       => Tensor t
       -> Tensor t
       -> Tensor t

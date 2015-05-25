@@ -39,7 +39,7 @@ import System.Random
 -- | Solution of the linear system a x = b, where a and b are
 -- general multidimensional arrays. The structure and dimension names
 -- of the result are inferred from the arguments.
-solve :: (Compat i, Coord t)
+solve :: (Compat i, Coord t, Field t)
         => NArray i t -- ^ coefficients (a)
         -> NArray i t -- ^ target       (b)
         -> NArray i t -- ^ result       (x)
@@ -60,7 +60,7 @@ solve' g a b = x where
 -- general multidimensional array.
 --
 -- If the system is overconstrained we may provide the theoretical rank to get a MSE solution.
-solveHomog :: (Compat i, Coord t)
+solveHomog :: (Compat i, Coord t, Field t)
            =>  NArray i t    -- ^ coefficients (a)
            -> [Name]         -- ^ desired dimensions for the result
                              --   (a subset selected from the target).
@@ -78,7 +78,7 @@ solveHomog' g a nx' hint = xs where
 
 -- | A simpler way to use 'solveHomog', which returns just one solution.
 -- If the system is overconstrained it returns the MSE solution.
-solveHomog1 :: (Compat i, Coord t)
+solveHomog1 :: (Compat i, Coord t, Field t)
             => NArray i t
             -> [Name]
             -> NArray i t
@@ -88,7 +88,7 @@ solveHomog1' g m ns = head $ solveHomog' g m ns (Right (k-1))
     where k = product $ map iDim $ selDims (dims m) ns
 
 -- | 'solveHomog1' for single letter index names.
-solveH :: (Compat i, Coord t) => NArray i t -> [Char] -> NArray i t
+solveH :: (Compat i, Coord t, Field t) => NArray i t -> [Char] -> NArray i t
 solveH m ns = solveHomog1 m (map return ns)
 
 
@@ -172,7 +172,7 @@ alsStep f params a x = (foldl1' (.) (map (f params a) [n,n-1 .. 0])) x
 
 -- | Solution of a multilinear system a x y z ... = b based on alternating least squares.
 mlSolve
-  :: (Compat i, Coord t, Num (NArray i t), Show (NArray i t))
+  :: (Compat i, Coord t, Field t, Num (NArray i t), Show (NArray i t))
      => ALSParam i t     -- ^ optimization parameters
      -> [NArray i t]  -- ^ coefficients (a), given as a list of factors.
      -> [NArray i t]  -- ^ initial solution [x,y,z...]
@@ -192,7 +192,7 @@ alsArg b params a k xs = sol where
 
 -- | Solution of the homogeneous multilinear system a x y z ... = 0 based on alternating least squares.
 mlSolveH
-  :: (Compat i, Coord t, Num (NArray i t), Show (NArray i t))
+  :: (Compat i, Coord t, Field t, Num (NArray i t), Show (NArray i t))
      => ALSParam  i t    -- ^ optimization parameters
      -> [NArray i t]  -- ^ coefficients (a), given as a list of factors.
      -> [NArray i t]  -- ^ initial solution [x,y,z...]
@@ -232,7 +232,7 @@ alsArgP b h params a k xs = sol where
 {- | Given two arrays a (source) and  b (target), we try to compute linear transformations x,y,z,... for each dimension, such that product [a,x,y,z,...] == b.
 (We can use 'eqnorm' for 'post' processing, or 'id'.)
 -}
-solveFactors :: (Coord t, Random t, Compat i, Num (NArray i t), Show (NArray i t))
+solveFactors :: (Coord t, Field t, Random t, Compat i, Num (NArray i t), Show (NArray i t))
              => Int          -- ^ seed for random initialization
              -> ALSParam i t     -- ^ optimization parameters
              -> [NArray i t] -- ^ source (also factorized)
@@ -264,7 +264,7 @@ initFactorsRandom seed a b = initFactorsSeq (randomRs (-1,1) (mkStdGen seed)) a 
 -- [\"pi\",\"qj\", \"rk\", etc.], we try to compute linear transformations
 -- x!\"pi\", y!\"pi\", z!\"rk\", etc. such that product [a,x,y,z,...] == 0.
 solveFactorsH
-  :: (Coord t, Random t, Compat i, Num (NArray i t), Show (NArray i t))
+  :: (Coord t, Random t, Field t, Compat i, Num (NArray i t), Show (NArray i t))
      => Int -- ^ seed for random initialization
      -> ALSParam  i t    -- ^ optimization parameters
      -> [NArray i t] -- ^ coefficient array (a), (also factorized)

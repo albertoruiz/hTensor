@@ -73,9 +73,10 @@ ident n = diagRect 0 (konst 1 n) n n
 debug m f x = trace (m ++ show (f x)) x
 
 -- | Types that can be elements of the multidimensional arrays.
-class (Num (Vector t), Field t, Normed (Vector t), Show t, Numeric t, Indexable (Vector t) t) => Coord t
+class (Num (Vector t), Normed (Vector t), Show t, Numeric t, Indexable (Vector t) t) => Coord t
 instance Coord Double
 instance Coord (Complex Double)
+instance Coord CInt
 
 -- | indices are denoted by strings, (frequently single-letter)
 type Name = String

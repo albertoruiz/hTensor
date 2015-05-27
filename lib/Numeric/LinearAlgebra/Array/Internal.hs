@@ -52,7 +52,7 @@ module Numeric.LinearAlgebra.Array.Internal (
     selDims, mapDims,
     takeDiagT, atT,
     firstIdx, fibers, matrixator, matrixatorFree,
-    Coord,
+    Coord,I,
     asMatrix, asVector, asScalar,
     resetCoords,
     debug
@@ -76,7 +76,7 @@ debug m f x = trace (m ++ show (f x)) x
 class (Num (Vector t), Normed (Vector t), Show t, Numeric t, Indexable (Vector t) t) => Coord t
 instance Coord Double
 instance Coord (Complex Double)
-instance Coord CInt
+instance Coord I
 
 -- | indices are denoted by strings, (frequently single-letter)
 type Name = String

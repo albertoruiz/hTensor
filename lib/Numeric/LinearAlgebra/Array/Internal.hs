@@ -148,7 +148,7 @@ renameExplicit al = g . mapNames f where
 namesR :: NArray i t -> [Name]
 namesR = map iName . dims
 
--- | Index names.
+-- | Index names (in alphabetical order).
 names :: NArray i t -> [Name]
 names = sort . namesR
 
@@ -159,6 +159,7 @@ size n t = (iDim . head) (filter ((n==).iName) (dims t))
 sizesR :: NArray i t -> [Int]
 sizesR = map iDim . dims
 
+-- | Dimensions of indices (in alphabetical order of indices).
 sizes :: NArray i t -> [Int]
 sizes t = map (flip size t) (names t)
 

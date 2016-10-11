@@ -251,20 +251,24 @@ partsRaw a name = map f (toRows m)
     where (_:ds,m) = firstIdx name a
           f t = A {dims=ds, coords=t}
 
-tridx [] t = t
-tridx (name:rest) t = A (d:ds) (vjoin ts) where
-    d = case lastIdx name t of
-            ((_,d':_),_) -> d'
-            _ -> error "wrong index sequence to reorder"
-    ps = map (tridx rest) (partsRaw t name)
-    ts = map coords ps
-    ds = dims (head ps)
+tridx names' t0 | done (namesR t0) names' = t0
+                | otherwise               = go names' t0
+    where done oldNames newNames = and $ zipWith (==) newNames (oldNames ++ error "too many indices to reorder")
+          go [] t = t
+          go (name:rest) t = A (d:ds) (vjoin ts) where
+              d = case lastIdx name t of
+                      ((_,d':_),_) -> d'
+                      _ -> error "wrong index sequence to reorder"
+              ps = partsRaw t name
+              ps' | done (namesR $ head ps) rest = ps
+                  | otherwise                    = map (go rest) ps
+              ts = map coords ps'
+              ds = dims (head ps')
 
 -- | Change the internal layout of coordinates.
 -- The array, considered as an abstract object, does not change.
 reorder :: (Coord t) => [Name] -> NArray i t -> NArray i t
-reorder ns b | ns == namesR b = b
-             | sort ns == sort (namesR b) = tridx ns b
+reorder ns b | sort ns == sort (namesR b) = tridx ns b
              | otherwise = error $ "wrong index sequence " ++ show ns
                                     ++ " to reorder "++(show $ namesR b)
 

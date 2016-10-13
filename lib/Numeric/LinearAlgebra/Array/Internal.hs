@@ -27,7 +27,7 @@ module Numeric.LinearAlgebra.Array.Internal (
     -- * Array creation
     scalar,
     mkNArray,
-    fromVector, fromMatrix,
+    fromVector, fromMatrix, reshapeVector,
     -- * Array manipulation
     renameRaw,
     parts, partsRaw,
@@ -410,6 +410,10 @@ fromVector i v = mkNArray [Idx i (dim v) "1"] v
 fromMatrix :: (Compat i, Coord t) => i -> i -> Matrix t -> NArray i t
 fromMatrix ir ic m = mkNArray [Idx ir (rows m) "1",
                                Idx ic (cols m) "2"] (flatten m)
+
+-- | Create an 'NArray' from a 'Vector' by specifying the 'dims' and 'coords'.
+reshapeVector :: (Compat i, Coord t) => [Idx i] -> Vector t -> NArray i t
+reshapeVector dms vec = contract $ mkNArray dms vec
 
 ------------------------------------------------------------------------
 

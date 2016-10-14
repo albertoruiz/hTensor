@@ -39,7 +39,7 @@ module Numeric.LinearAlgebra.Array.Util (
     resetCoords,
     asScalar, asVector, asMatrix, applyAsMatrix,
     fibers, matrixator, matrixatorFree, analyzeProduct,
-    fromVector, fromMatrix
+    fromVector, fromMatrix, reshapeVector
     -- ,Container(..),
 ) where
 

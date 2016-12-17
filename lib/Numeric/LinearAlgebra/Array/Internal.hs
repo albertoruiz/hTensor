@@ -98,11 +98,10 @@ data NArray i t = A { dims   :: [Idx i]   -- ^ Get detailed dimension informatio
 
 -- | development function not intended for the end user
 mkNArray :: (Coord a) => [Idx i] -> Vector a -> NArray i a
-mkNArray [] _ = error "array with empty dimensions, use scalar"
 mkNArray dms vec = A dms v where
     ds = map iDim dms
     n = product ds
-    v = if dim vec == n && minimum ds > 0
+    v = if dim vec == n && (null ds || minimum ds > 0)
             then vec
             else error $ show ds ++ " dimensions and " ++
                          show (dim vec) ++ " coordinates for mkNArray"
@@ -277,9 +276,7 @@ reorder ns b | sort ns == sort (namesR b) = tridx ns b
 -- | Apply a function (defined on hmatrix 'Vector's) to all elements of a structure.
 -- Use @mapArray (mapVector f)@ for general functions.
 mapArray :: (Coord b) => (Vector a -> Vector b) -> NArray i a -> NArray i b
-mapArray f t
-    | null (dims t) = scalar (f (coords t)!0)
-    | otherwise = mkNArray (dims t) (f (coords t))
+mapArray f t = mkNArray (dims t) (f (coords t))
 
 liftNA2 f (A d1 v1) (A _d2 v2) = A d1 (f v1 v2)
 

@@ -501,7 +501,7 @@ smartProduct ts = r where
     g a b = case analyzeProduct a b of
               Nothing -> error $ "inconsistent dimensions in smartProduct: "++(show $ dims a)++" and "++(show $ dims b)
               Just (_,c) -> c
-    pairs = [ ((i,j), g a b) | (i,a) <- init xs, (j,b) <- drop (i+1) xs ]
+    pairs = [ ((i,j), g a b - product (sizes a) - product (sizes b)) | (i,a) <- init xs, (j,b) <- drop (i+1) xs ]
     (p,q) = fst $ minimumBy (compare `on` snd) pairs
     r = smartProduct (ts!!p * ts!!q : (dropElemPos p . dropElemPos q) ts)
 

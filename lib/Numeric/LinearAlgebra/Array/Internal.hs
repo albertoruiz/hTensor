@@ -1,5 +1,5 @@
 {-# OPTIONS_HADDOCK hide #-}
-{-# LANGUAGE FlexibleInstances, FlexibleContexts, MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances, FlexibleContexts, MultiParamTypeClasses, ScopedTypeVariables #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Packed.Array.Internal
@@ -59,8 +59,9 @@ module Numeric.LinearAlgebra.Array.Internal (
 ) where
 
 
-import qualified Numeric.LinearAlgebra.HMatrix as LA
-import Numeric.LinearAlgebra.HMatrix hiding (size,scalar,ident)
+import qualified Numeric.LinearAlgebra.Devel as LA
+import qualified Numeric.LinearAlgebra as LA
+import Numeric.LinearAlgebra hiding (size,scalar,ident)
 import Data.List
 import Data.Function(on)
 import Debug.Trace
@@ -250,19 +251,24 @@ partsRaw a name = map f (toRows m)
     where (_:ds,m) = firstIdx name a
           f t = A {dims=ds, coords=t}
 
-tridx names' t0 | done (namesR t0) names' = t0
-                | otherwise               = go names' t0
-    where done oldNames newNames = and $ zipWith (==) newNames (oldNames ++ error "too many indices to reorder")
-          go [] t = t
-          go (name:rest) t = A (d:ds) (vjoin ts) where
-              d = case lastIdx name t of
-                      ((_,d':_),_) -> d'
-                      _ -> error "wrong index sequence to reorder"
-              ps = partsRaw t name
-              ps' | done (namesR $ head ps) rest = ps
-                  | otherwise                    = map (go rest) ps
-              ts = map coords ps'
-              ds = dims (head ps')
+-- transpose indices of array such that namesR of the new array will begin with names'
+tridx :: forall i t. Coord t => [Name] -> NArray i t -> NArray i t
+tridx names' t0 = mkNArray dims' coords' where
+    dims0 = dims t0
+    dims' :: [Idx i]
+    dims' = go names' dims0
+        where go []     ds = ds
+              go (n:ns) ds = case partition ((==n) . iName) ds of
+                  ([d],ds') -> d : go ns ds'
+                  ([] ,_  ) -> error $ show n ++ " is not a dimension of " ++ show (map iName ds)
+                  (_  ,_  ) -> error $ show n ++ " is repeated in "        ++ show (map iName ds)
+    strides :: [Int]
+    strides = flip map dims' $ \d ->
+              product $ map iDim $ tail $ dropWhile (on (/=) iName d) dims0
+    intVec  = fromList . map fromIntegral
+    done    = and $ on (zipWith (==)) (map iName . filter ((>1) . iDim)) dims0 dims'
+    coords' | done      = coords t0
+            | otherwise = LA.reorderVector (intVec strides) (intVec $ map iDim dims') (coords t0)
 
 -- | Change the internal layout of coordinates.
 -- The array, considered as an abstract object, does not change.

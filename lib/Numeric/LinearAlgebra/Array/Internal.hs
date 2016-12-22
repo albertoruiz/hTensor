@@ -58,13 +58,19 @@ module Numeric.LinearAlgebra.Array.Internal (
     debug
 ) where
 
-
 import qualified Numeric.LinearAlgebra.Devel as LA
 import qualified Numeric.LinearAlgebra as LA
 import Numeric.LinearAlgebra hiding (size,scalar,ident)
 import Data.List
 import Data.Function(on)
+import Data.Maybe
 import Debug.Trace
+
+import Data.Set (Set)
+import qualified Data.Set as Set
+
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
 
 dim x = LA.size x
 trans x = LA.tr' x
@@ -189,8 +195,8 @@ analyzeProduct a b = r where
     mc  = trans tma <> mb
     da  = selDims (dims a) na
     db  = selDims (dims b) nb
-    dc  = da ++ db
-    c   = A dc (flatten mc)
+    dc  = db ++ da
+    c   = A dc (flatten $ trans mc) -- mc is a column-major matrix and we want to avoid a matrix transpose
     sz  = product (map iDim dc)
     r | ok = Just (c, sz)
       | otherwise = Nothing
@@ -491,24 +497,62 @@ atT t c = atT' c t where
 
 -- not very smart...
 
--- | This is equivalent to the regular 'product', but in the order that minimizes the size of the
--- intermediate factors.
-smartProduct :: (Coord t, Compat i, Num (NArray i t)) => [NArray i t] -> NArray i t
-smartProduct [] = 1
-smartProduct [a] = a
-smartProduct [a,b] = a*b
-smartProduct ts = r where
-    n = length ts
-    ks = [0 .. n-1]
-    xs = zip ks ts
-    g a b = case analyzeProduct a b of
-              Nothing -> error $ "inconsistent dimensions in smartProduct: "++(show $ dims a)++" and "++(show $ dims b)
-              Just (_,c) -> c
-    pairs = [ ((i,j), g a b - product (sizes a) - product (sizes b)) | (i,a) <- init xs, (j,b) <- drop (i+1) xs ]
-    (p,q) = fst $ minimumBy (compare `on` snd) pairs
-    r = smartProduct (ts!!p * ts!!q : (dropElemPos p . dropElemPos q) ts)
+type Cost     = Either Int Int
+type TensorID = Int
 
-dropElemPos k xs = take k xs ++ drop (k+1) xs
+data SmartProductDat i t = SmartProductDat {
+    pTensors   :: Map TensorID (NArray i t),    -- label tensors with a unique ID
+    pIndexMap  :: Map Name (Set TensorID),      -- all tensors with a given index
+    pSizes     :: Set (Int, TensorID),          -- tensors sorted by size
+    pPairCosts :: Set (Cost,TensorID,TensorID), -- sorted contraction suggestions
+    pMaxID     :: TensorID }                    -- largest ID
+-- pPairCosts has an entry for all pairs of tensors with common indices of dimension > 1
+-- To deal with disconnected networks (and scalars), pPairCosts also always has an entry for the two smallest tensors (obtained via pSizeMap)
+-- Extra entries in pPairCosts may exists, even with a TensorID that isn't in pTensors
+
+smartProduct :: (Coord t, Compat i, Num (NArray i t)) => [NArray i t] -> NArray i t
+smartProduct = contractTensors . foldl' (flip addTensor) dat0  where
+    dat0 = SmartProductDat Map.empty Map.empty Set.empty Set.empty 0
+    sizeF = product . sizesR
+    addTensor t dat      = addSmallSizePairs dat $ SmartProductDat {
+              pTensors   = Map.insertWith undefined iD t $ pTensors dat,
+              pIndexMap  = foldl' (\iM n -> Map.insertWith Set.union n (Set.singleton iD) iM) (pIndexMap dat)
+                         $ map iName $ filter ((>1) . iDim) $ dims t,
+              pSizes     = Set.insert (sizeF t, iD) $ pSizes dat,
+              pPairCosts = foldl' (flip Set.insert) (pPairCosts dat) newPairs,
+              pMaxID     = iD }
+        where iD         = pMaxID dat + 1
+              newPairs   = [ (costF t $ pTensors dat Map.! iD', iD', iD)
+                           | iD' <- Set.toList $ Set.unions $ mapMaybe (flip Map.lookup $ pIndexMap dat) $ namesR t ]
+    removeTensor iD dat  = addSmallSizePairs dat $ dat {
+              pTensors   = Map.delete iD $ pTensors dat,
+              pIndexMap  = foldl' (flip $ Map.update $ justIf (not . Set.null) . Set.delete iD)
+                           (pIndexMap dat) $ namesR t,
+              pSizes     = Set.delete (sizeF t, iD) $ pSizes dat }
+        where t          = pTensors dat Map.! iD
+              justIf q x | q x       = Just x
+                         | otherwise = Nothing
+    -- add a pPairCosts entry whenever the two smallest tensors change, so that there is always an entry for the two smallest tensors
+    addSmallSizePairs dat dat'
+        | on (/=) (take 2 . Set.toAscList . pSizes) dat dat',
+          ((_,iD):(_,iD'):_) <- Set.toAscList $ pSizes dat'
+        = dat' { pPairCosts = Set.insert (on costF (pTensors dat' Map.!) iD iD', iD, iD') $ pPairCosts dat' }
+        | otherwise = dat'
+    costF a b = case analyzeProduct a b of
+                     Nothing    -> error $ "inconsistent dimensions in smartProduct: " ++ show (dims a) ++ " and " ++ show (dims b)
+                     Just (_,sC) -> let sA = sizeF a
+                                        sB = sizeF b
+                                    in  if   sC <= max sA sB      -- favor contractions which reduce the size of the larger tensor
+                                        then Left    sC           -- favor small tensors first
+                                        else Right $ sC - sA - sB -- prioritize the larger tensors
+    contractTensors dat = case Set.minView $ pPairCosts dat of
+        Nothing                       -> (\[t] -> t) $ Map.elems $ pTensors dat
+        Just ((_,iD,iD'), pairCosts') ->
+            let update = fromMaybe id
+                       $ do t  <- Map.lookup iD  $ pTensors dat -- only contract if iD and iD' haven't already been removed
+                            t' <- Map.lookup iD' $ pTensors dat
+                            return $ addTensor (t * t') . removeTensor iD . removeTensor iD'
+            in  contractTensors $ update $ dat { pPairCosts = pairCosts' }
 
 ----------------------------------------------
 

@@ -67,7 +67,7 @@ import Data.Function(on)
 import Debug.Trace
 
 dim x = LA.size x
-trans x = LA.tr x
+trans x = LA.tr' x
 
 ident n = diagRect 0 (konst 1 n) n n
 
